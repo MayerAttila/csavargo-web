@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { notify } from "@/lib/notifications";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
 import { navigateAfterAuth } from "@/lib/auth-navigation";
@@ -15,6 +16,10 @@ export function Dashboard({ initialMe }: { initialMe: Me }) {
   const { data, error } = useQuery({ queryKey: meKey, queryFn: getMe, initialData: initialMe, retry: false });
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
+  function showError(text: string) {
+    setMessage(text);
+    notify.error(text, { id: "auth-dashboard" });
+  }
   useEffect(() => {
     if (error?.message === "UNAUTHORIZED") { queryClient.clear(); router.replace("/belepes"); router.refresh(); }
   }, [error, queryClient, router]);
@@ -24,17 +29,19 @@ export function Dashboard({ initialMe }: { initialMe: Me }) {
     setPending(true); setMessage("");
     try {
       const result = await authClient.signOut();
-      if (result.error) { setMessage(authError(result.error)); return; }
-      queryClient.clear(); navigateAfterAuth("/belepes");
-    } catch { setMessage("A kijelentkezés nem sikerült. Próbáld újra."); }
+      if (result.error) { showError(authError(result.error, "logout")); return; }
+      queryClient.clear(); navigateAfterAuth("/belepes", "signed-out");
+    } catch { showError("A kijelentkezés nem sikerült. Próbáld újra."); }
     finally { setPending(false); }
   }
   async function resend() {
     setPending(true); setMessage("");
     try {
       const result = await authClient.sendVerificationEmail({ email: data.user.email, callbackURL: "/email-megerosites" });
-      setMessage(result.error ? authError(result.error) : "Kértük a megerősítő levél elküldését. Ellenőrizd a beérkező leveleket és a levélszemét mappát; ha nem érkezik meg, később kérj újat.");
-    } catch { setMessage("A levél küldése nem sikerült. Próbáld újra később."); }
+      if (result.error) { showError(authError(result.error, "verification")); return; }
+      setMessage("Kértük a megerősítő levél elküldését. Ellenőrizd a beérkező leveleket és a levélszemét mappát; ha nem érkezik meg, később kérj újat.");
+      notify.success("Kértük a megerősítő levél újraküldését.", { id: "auth-dashboard" });
+    } catch { showError("A levél küldése nem sikerült. Próbáld újra később."); }
     finally { setPending(false); }
   }
   return <main className="mx-auto min-h-screen max-w-5xl px-5 py-8 sm:px-8">

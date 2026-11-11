@@ -2,6 +2,7 @@
 import { useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { notify } from "@/lib/notifications";
 import { authClient } from "@/lib/auth-client";
 import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { registrationSchema, loginSchema, emailSchema, passwordSchema, authError } from "@/lib/auth-validation";
@@ -21,6 +22,10 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+  function showError(text: string) {
+    setMessage(text);
+    notify.error(text, { id: "auth-form" });
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!hydrated || pending) return;
@@ -42,18 +47,28 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
         : mode === "login" ? await authClient.signIn.email({ email: values.email, password: values.password })
         : mode === "forgot" ? await authClient.requestPasswordReset({ email: values.email, redirectTo: `${window.location.origin}/uj-jelszo` })
         : await authClient.resetPassword({ newPassword: values.password, token: token ?? "" });
-      if (result.error) { setMessage(authError(result.error)); return; }
-      if (mode === "forgot") { setSuccess(true); setMessage("Ha ehhez az e-mail-címhez tartozik fiók, elküldtük a jelszó-visszaállító hivatkozást."); }
-      else if (mode === "reset") { router.replace("/belepes?jelszo=frissitve"); router.refresh(); }
+      if (result.error) { showError(authError(result.error, mode)); return; }
+      if (mode === "forgot") {
+        const confirmation = "Ha ehhez az e-mail-címhez tartozik fiók, elküldtük a jelszó-visszaállító hivatkozást.";
+        setSuccess(true); setMessage(confirmation);
+        notify.success(confirmation, { id: "auth-form" });
+      }
+      else if (mode === "reset") {
+        notify.success("Sikeresen megváltoztattad a jelszavadat. Jelentkezz be az új jelszóval.", { id: "auth-form" });
+        router.replace("/belepes?jelszo=frissitve"); router.refresh();
+      }
       else {
         const session = await authClient.getSession({ fetchOptions: { cache: "no-store" } });
-        if (session.error || !session.data?.session) {
-          setMessage("Nem sikerült ellenőrizni a bejelentkezést. Próbálj belépni a fiókodba.");
+        if (session.error) { showError(authError(session.error, "session")); return; }
+        if (!session.data?.session) {
+          showError(mode === "register"
+            ? "A fiókod létrejött, de az automatikus bejelentkezés nem sikerült. Lépj be az e-mail-címeddel és jelszavaddal."
+            : "Nem sikerült ellenőrizni a bejelentkezést. Próbálj belépni a fiókodba.");
           return;
         }
-        navigateAfterAuth("/attekintes");
+        navigateAfterAuth("/attekintes", mode === "register" ? "registered" : "signed-in");
       }
-    } catch { setMessage("Nem sikerült kapcsolódni. Ellenőrizd az internetkapcsolatodat, majd próbáld újra."); }
+    } catch { showError("Nem sikerült kapcsolódni. Ellenőrizd az internetkapcsolatodat, majd próbáld újra."); }
     finally { setPending(false); }
   }
   return <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">

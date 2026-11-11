@@ -29,6 +29,32 @@ A védett layout ellenőrzi a munkamenetet; a személyes adatot használó oldal
 Az áttekintő oldal szerveroldalon ellenőrzi a munkamenetet. A jelszó-visszaállítás minden korábbi munkamenetet visszavon.
 A felület saját Tailwind komponenseket használ; a munkamenetet HttpOnly süti kezeli.
 
+## Értesítések
+
+Az egész alkalmazásban React Hot Toast működik, egyetlen `AppToaster` komponenssel a közös providerben.
+A `notify` API bármely klienskomponensben használható:
+
+```tsx
+import { notify } from "@/lib/notifications";
+
+notify.success("Sikeres mentés!");
+notify.error("A mentés nem sikerült.");
+notify.promise(saveTrip(), {
+  loading: "Mentés…",
+  success: "Az utazást elmentettük.",
+  error: "Az utazás mentése nem sikerült.",
+});
+```
+
+A globális QueryClient automatikusan jelez lekérdezési és módosítási hibánál, szerverhiba-részletek megjelenítése nélkül.
+A query/mutation `meta.errorMessage` magyar szöveget állíthat be; mutation esetén a `meta.successMessage`
+siker-toastot is kérhet. A `meta.silent: true` kikapcsolja az automatikus értesítést, ha a komponens maga kezeli.
+A kijelentkezett munkamenet (`UNAUTHORIZED`) nem kap általános hiba-toastot. A mezővalidáció továbbra is inline marad.
+Az auth sikerüzenetei teljes oldalas navigáció után is megjelennek; csak rögzített értesítési kód kerül sessionStorage-ba.
+Az auth hibaszövegeit a `authError` a hibakód, HTTP-státusz és művelet alapján választja ki
+(például foglalt e-mail-cím, nem engedélyezett webcím, elérhetetlen regisztrációs szolgáltatás).
+A szerver nyers belső hibaüzenete nem kerül a felületre.
+
 ## Ellenőrzés
 
 `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm build`.
