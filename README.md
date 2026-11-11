@@ -22,6 +22,10 @@ A Next.js az `/api/*` kéréseket erre továbbítja; böngészőben nincs külö
 Az érték buildkor és futáskor egyezzen.
 
 Oldalak: `/belepes`, `/regisztracio`, `/elfelejtett-jelszo`, `/uj-jelszo`, `/email-megerosites`, `/attekintes`.
+Az `src/app/(public)` a nyilvános oldalakat és a beágyazott `(auth)` űrlapokat, az
+`src/app/(protected)` a belépést igénylő oldalakat tartalmazza. A route groupok nem módosítják az URL-eket.
+A védett layout ellenőrzi a munkamenetet; a személyes adatot használó oldalak is meghívják a közös
+`requireServerMe` segédet. A `getServerMe` lekérés egy szerverkérésen belül megosztott, a kérések között nem cache-elődik.
 Az áttekintő oldal szerveroldalon ellenőrzi a munkamenetet. A jelszó-visszaállítás minden korábbi munkamenetet visszavon.
 A felület saját Tailwind komponenseket használ; a munkamenetet HttpOnly süti kezeli.
 

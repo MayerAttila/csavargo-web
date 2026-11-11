@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
+import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { authError } from "@/lib/auth-validation";
 import { getMe, meKey, type Me } from "@/lib/api";
 import { buttonClass } from "./field";
@@ -24,7 +25,7 @@ export function Dashboard({ initialMe }: { initialMe: Me }) {
     try {
       const result = await authClient.signOut();
       if (result.error) { setMessage(authError(result.error)); return; }
-      queryClient.clear(); router.replace("/belepes"); router.refresh();
+      queryClient.clear(); navigateAfterAuth("/belepes");
     } catch { setMessage("A kijelentkezés nem sikerült. Próbáld újra."); }
     finally { setPending(false); }
   }
