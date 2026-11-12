@@ -5,6 +5,7 @@ import type { Map as MapboxMap, Marker, MapMouseEvent, ErrorEvent } from "mapbox
 import { HiOutlineMap } from "react-icons/hi2";
 import { notify } from "@/lib/notifications";
 import { isPublicMapToken, mapErrorMessage, WEBGL_ERROR } from "./map-errors";
+import { pointFromMapFeature } from "./map-poi";
 import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapCameraCommand, type MapPoint, type MapView } from "./types";
 
 export type MapCanvasProps = {
@@ -12,6 +13,7 @@ export type MapCanvasProps = {
   selectedId?: string;
   onSelect: (id: string) => void;
   onMapClick: (coordinates: Coordinates) => void;
+  onPlaceSelect?: (point: MapPoint) => void;
   initialView?: MapView;
   basemap?: MapBasemap;
   cameraCommand?: MapCameraCommand;
@@ -20,7 +22,7 @@ export type MapCanvasProps = {
 };
 const styles = { standard: "mapbox://styles/mapbox/standard", satellite: "mapbox://styles/mapbox/satellite-streets-v12" };
 
-export function MapCanvas({ points, selectedId, onSelect, onMapClick, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
+export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSelect, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
   className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "" }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
@@ -29,8 +31,8 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, initialVie
   const { resolvedTheme } = useTheme();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
-  const latest = useRef({ onSelect, onMapClick, initialView, basemap, dark: resolvedTheme === "dark" });
-  useEffect(() => { latest.current = { onSelect, onMapClick, initialView, basemap, dark: resolvedTheme === "dark" }; });
+  const latest = useRef({ onSelect, onMapClick, onPlaceSelect, initialView, basemap, dark: resolvedTheme === "dark" });
+  useEffect(() => { latest.current = { onSelect, onMapClick, onPlaceSelect, initialView, basemap, dark: resolvedTheme === "dark" }; });
 
   useEffect(() => {
     if (!isPublicMapToken(token)) return;
@@ -54,7 +56,23 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, initialVie
         appliedBasemap.current = props.basemap;
         instance.touchZoomRotate.disableRotation();
         instance.addControl(new mapbox.NavigationControl({ showCompass: false }), "top-right");
-        const click = (event: MapMouseEvent) => latest.current.onMapClick([event.lngLat.lng, event.lngLat.lat]);
+        const poiAt = (event: MapMouseEvent): MapPoint | null => {
+          if (!instance?.isStyleLoaded()) return null;
+          const features = latest.current.basemap === "standard"
+            ? instance.queryRenderedFeatures(event.point, { target: { featuresetId: "poi", importId: "basemap" } })
+            : instance.queryRenderedFeatures(event.point, { layers: instance.getStyle().layers
+              .filter((layer) => layer.type === "symbol" && "source-layer" in layer && layer["source-layer"] === "poi_label").map((layer) => layer.id) });
+          for (const feature of features) { const point = pointFromMapFeature(feature); if (point) return point; }
+          return null;
+        };
+        const click = (event: MapMouseEvent) => {
+          if (!instance?.isStyleLoaded()) return;
+          const place = poiAt(event);
+          if (place) { latest.current.onPlaceSelect?.(place); return; }
+          latest.current.onMapClick([event.lngLat.lng, event.lngLat.lat]);
+        };
+        const hover = (event: MapMouseEvent) => { if (instance) instance.getCanvas().style.cursor = poiAt(event) ? "pointer" : ""; };
+        const leave = () => { if (instance) instance.getCanvas().style.cursor = ""; };
         const ready = () => { if (!cancelled) setStatus("ready"); };
         const configure = () => {
           if (latest.current.basemap === "standard") {
@@ -68,6 +86,8 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, initialVie
           setStatus("error");
         };
         instance.on("click", click); instance.on("load", ready); instance.on("error", error); instance.on("style.load", configure);
+        instance.on("mousemove", hover); instance.on("mouseout", leave);
+        disposers.push(() => { instance?.off("mousemove", hover); instance?.off("mouseout", leave); });
         disposers.push(() => { instance?.off("click", click); instance?.off("load", ready); instance?.off("error", error); instance?.off("style.load", configure); });
         observer = new ResizeObserver(() => instance?.resize()); observer.observe(container.current);
         const canvas = instance.getCanvas();

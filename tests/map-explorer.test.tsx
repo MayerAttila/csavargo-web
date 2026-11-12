@@ -8,7 +8,9 @@ vi.mock("@/components/maps/search-api", async (importOriginal) => ({ ...await im
 vi.mock("@/lib/notifications", () => ({ notify: { error: mock.error } }));
 vi.mock("@/components/maps/map-canvas", () => ({ MapCanvas: (props: MapCanvasProps) => {
   mock.props = props;
-  return <div aria-label="Teszt térkép"><button onClick={() => props.onMapClick([19.1, 47.5])}>Pont a térképen</button><button onClick={() => props.onSelect("sample:heroes")}>Hősök jelölő</button></div>;
+  return <div aria-label="Teszt térkép"><button onClick={() => props.onMapClick([19.1, 47.5])}>Pont a térképen</button><button onClick={() => props.onSelect("sample:heroes")}>Hősök jelölő</button>
+    <button onClick={() => props.onPlaceSelect?.({ id: "poi:cafe", label: "Kávézó", coordinates: [19.08, 47.51], source: "map" })}>Kávézó a térképen</button>
+    <button onClick={() => props.onPlaceSelect?.({ id: "poi:parliament", label: "Országház", coordinates: [19.04568, 47.50715], source: "map" })}>Országház a térképen</button></div>;
 } }));
 beforeEach(() => { mock.error.mockClear(); mock.findInfo.mockReset(); });
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -38,6 +40,15 @@ describe("V18: map explorer state", () => {
     render(<MapExplorer />); const toggle = screen.getByRole("button", { name: "Helyek (3)" });
     fireEvent.click(toggle); expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle); expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+  it("adds clicked POIs once and selects existing sample places without creating custom points", () => {
+    render(<MapExplorer />);
+    fireEvent.click(screen.getByRole("button", { name: "Országház a térképen" }));
+    expect(mock.props?.points).toHaveLength(3); expect(mock.props?.selectedId).toBe("sample:parliament");
+    fireEvent.click(screen.getByRole("button", { name: "Kávézó a térképen" }));
+    expect(mock.props?.points).toHaveLength(4); expect(mock.props?.points[3]).toMatchObject({ label: "Kávézó", source: "map" });
+    fireEvent.click(screen.getByRole("button", { name: "Kávézó a térképen" })); expect(mock.props?.points).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "Pont a térképen" })); expect(mock.props?.points[4].label).toBe("Saját hely 1");
   });
   it("loads sample metadata on selection and reuses it for the current page", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");

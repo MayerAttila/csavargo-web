@@ -94,6 +94,10 @@ Kereshetsz városra, címre vagy látnivalóra, kattintással saját pontot vehe
 normál/műholdas nézet között, és gombnyomásra lekérheted a saját helyzetedet.
 A normál térkép követi a világos/sötét témát. A térkép 2D; útvonaltervezés még nincs.
 
+A térképen látható látnivalók és üzletek feliratára/ikonjára kattintva az adott hely kerül kijelölésre,
+névvel és elérhető részletekkel. A már felvett hely nem duplázódik. Csak üres térképfelületre kattintva
+készül „Saját hely” pont. A normál stílus a Standard `poi` featuresetet, a műholdas a POI-címkerétegeket használja.
+
 Az `.env.local` fájlban állítsd be a `NEXT_PUBLIC_MAPBOX_TOKEN` változót egy saját **nyilvános `pk.*`**
 Mapbox-tokenre. Titkos `sk.*` token nem kerülhet a frontendbe. A Mapbox-fiókban korlátozd az engedélyezett
 URL-eket a használt fejlesztői és éles webcímekre; a fejlesztői localhost/LAN-címet is add hozzá, ha használod.

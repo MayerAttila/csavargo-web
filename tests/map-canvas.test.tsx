@@ -14,6 +14,8 @@ class FakeMap {
   off(name: string, handler: (event?: unknown) => void) { this.events.get(name)?.delete(handler); }
   emit(name: string, event?: unknown) { this.events.get(name)?.forEach((handler) => handler(event)); }
   getCanvas() { return this.canvas; }
+  queryRenderedFeatures = vi.fn().mockReturnValue([]);
+  getStyle = () => ({ layers: [{ id: "poi-label", type: "symbol", "source-layer": "poi_label" }, { id: "road-label", type: "symbol", "source-layer": "road" }] });
 }
 class FakeMarker {
   remove = vi.fn(() => this.element.remove());
@@ -75,6 +77,23 @@ describe("V19/V21: reusable MapCanvas", () => {
     expect(instance.fitBounds).toHaveBeenCalledWith([[19.045, 47.507], [19.077, 47.514]], expect.objectContaining({ padding: 65 }));
     rerender(<MapCanvas {...props} cameraCommand={{ type: "view", view: { center: [20, 48], zoom: 14 } }} />);
     expect(instance.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [20, 48], zoom: 14 }));
+  });
+  it("selects named POIs before the custom-point handler in standard and satellite styles", async () => {
+    const onPlaceSelect = vi.fn(); const onMapClick = vi.fn();
+    const props = { token: "pk.test", points, onSelect: vi.fn(), onPlaceSelect, onMapClick };
+    const { rerender } = render(<MapCanvas {...props} />); const instance = await loaded();
+    instance.queryRenderedFeatures.mockReturnValue([{ properties: { name: "Kávézó" }, geometry: { type: "Point", coordinates: [19.05, 47.5] } }]);
+    const event = { point: { x: 50, y: 50 }, lngLat: { lng: 19.06, lat: 47.51 } };
+    act(() => instance.emit("click", event));
+    expect(onPlaceSelect).toHaveBeenCalledWith(expect.objectContaining({ label: "Kávézó", coordinates: [19.05, 47.5], source: "map" }));
+    expect(onMapClick).not.toHaveBeenCalled();
+    expect(instance.queryRenderedFeatures).toHaveBeenCalledWith(event.point, { target: { featuresetId: "poi", importId: "basemap" } });
+    act(() => instance.emit("mousemove", event)); expect(instance.canvas.style.cursor).toBe("pointer");
+    rerender(<MapCanvas {...props} basemap="satellite" />);
+    act(() => instance.emit("click", event)); expect(instance.queryRenderedFeatures).toHaveBeenLastCalledWith(event.point, { layers: ["poi-label"] });
+    instance.queryRenderedFeatures.mockReturnValue([]); act(() => instance.emit("click", event));
+    expect(onMapClick).toHaveBeenCalledOnce(); expect(onMapClick).toHaveBeenCalledWith([19.06, 47.51]);
+    act(() => instance.emit("mousemove", event)); expect(instance.canvas.style.cursor).toBe("");
   });
   it("reports WebGL failure and retries with a fresh instance", async () => {
     mock.supported = false;

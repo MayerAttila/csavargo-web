@@ -8,6 +8,7 @@ import { PlaceList } from "./place-list";
 import type { PlaceInfoStatus } from "./place-info";
 import { findSamplePlace } from "./search-api";
 import { isPublicMapToken, mapErrorMessage } from "./map-errors";
+import { sameMapPlace } from "./map-poi";
 import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapCameraCommand, type MapPoint } from "./types";
 
 const SAMPLE_POINTS: MapPoint[] = [
@@ -37,7 +38,7 @@ export function MapExplorer() {
     try {
       const match = await findSamplePlace(point, token, controller.signal);
       if (controller.signal.aborted) return;
-      setPoints((current) => current.map((item) => item.id === point.id ? { ...item, info: match?.info ?? {} } : item));
+      setPoints((current) => current.map((item) => item.id === point.id ? { ...item, address: item.address ?? match?.address, info: match?.info ?? {} } : item));
       setInfoStates((current) => ({ ...current, [point.id]: undefined }));
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -51,6 +52,7 @@ export function MapExplorer() {
     setPoints((current) => [...current.filter((item) => item.id !== point.id), point]);
     setSelectedId(point.id); setPanelOpen(true);
     setCameraCommand({ type: "view", view: { center: point.coordinates, zoom: 14 } });
+    if (point.source === "map" && !point.info && isPublicMapToken(token)) void loadInfo(point);
   }
   function addManual(coordinates: Coordinates) {
     manualCount.current++;
@@ -62,7 +64,12 @@ export function MapExplorer() {
     infoRequest.current?.abort();
     setSelectedId(id); setPanelOpen(true);
     setCameraCommand({ type: "view", view: { center: point.coordinates, zoom: 14 } });
-    if (point.source === "sample" && !point.info && isPublicMapToken(token)) void loadInfo(point);
+    if ((point.source === "sample" || point.source === "map") && !point.info && isPublicMapToken(token)) void loadInfo(point);
+  }
+  function selectMapPlace(point: MapPoint) {
+    const existing = points.find((item) => sameMapPlace(item, point));
+    if (existing) select(existing.id);
+    else addPoint(point);
   }
   function remove(id: string) {
     if (selectedId === id) infoRequest.current?.abort();
@@ -106,9 +113,9 @@ export function MapExplorer() {
       </div>
     </div>
     <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)]">
-      <MapCanvas token={token} points={points} selectedId={selectedId} onSelect={select} onMapClick={addManual}
+      <MapCanvas token={token} points={points} selectedId={selectedId} onSelect={select} onMapClick={addManual} onPlaceSelect={selectMapPlace}
         basemap={basemap} cameraCommand={cameraCommand} className="h-[55svh] min-h-80 lg:col-start-2 lg:row-start-1 lg:h-full lg:min-h-72" />
-      <aside aria-label="Helykezelő" className="min-h-0 rounded-2xl border border-border bg-surface lg:col-start-1 lg:row-start-1 lg:overflow-y-auto">
+      <aside aria-label="Helykezelő" className="min-h-0 rounded-2xl border border-border bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:col-start-1 lg:row-start-1 lg:overflow-y-auto">
         <button type="button" aria-expanded={panelOpen} aria-controls="explorer-places" onClick={() => setPanelOpen((value) => !value)} className="flex min-h-12 w-full items-center justify-between p-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-brand lg:hidden">
           Helyek ({points.length})<HiOutlineChevronDown aria-hidden="true" className={`size-4 transition-transform ${panelOpen ? "rotate-180" : ""}`} />
         </button>

@@ -39,5 +39,5 @@ export async function findSamplePlace(point: MapPoint, token: string, signal: Ab
   const latitudeDifference = (place.coordinates[1] - point.coordinates[1]) * 111_320;
   const longitudeDifference = (place.coordinates[0] - point.coordinates[0]) * 111_320 * Math.cos(point.coordinates[1] * Math.PI / 180);
   // Do not attach a similarly named venue in another location to a sample point.
-  return Math.hypot(latitudeDifference, longitudeDifference) <= 500 ? place : null;
+  return Math.hypot(latitudeDifference, longitudeDifference) <= (point.source === "map" ? 100 : 500) ? place : null;
 }

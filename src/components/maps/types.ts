@@ -16,7 +16,7 @@ export type MapPoint = {
   coordinates: Coordinates;
   address?: string;
   info?: PlaceInfo;
-  source?: "sample" | "search" | "manual" | "geolocation";
+  source?: "sample" | "search" | "map" | "manual" | "geolocation";
 };
 
 export type MapView = { center: Coordinates; zoom: number };
