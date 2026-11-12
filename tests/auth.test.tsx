@@ -112,18 +112,14 @@ describe("Hungarian auth UI", () => {
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Hibás e-mail-cím vagy jelszó.", { id: "auth-form" }));
     expect(screen.queryByText("Hibás e-mail-cím vagy jelszó.")).not.toBeInTheDocument();
   });
-  it("renders unverified banner, resends email, and clears all private queries on logout", async () => {
+  it("renders the unverified banner and resends the confirmation email", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    client.setQueryData(["private-trip"], { title: "Titkos" });
     mocks.resend.mockResolvedValue({}); mocks.logout.mockResolvedValue({});
     render(<QueryClientProvider client={client}><Dashboard initialMe={me} /></QueryClientProvider>);
     expect(screen.getByText("Erősítsd meg az e-mail-címedet")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Megerősítő levél újraküldése" }));
     expect(mocks.resend).toHaveBeenCalledWith({ email: me.user.email, callbackURL: "/email-megerosites" });
     expect(mocks.toastSuccess).toHaveBeenCalledWith("Kértük a megerősítő levél újraküldését.", { id: "auth-dashboard" });
-    await userEvent.click(screen.getByRole("button", { name: "Kijelentkezés" }));
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/belepes", "signed-out"));
-    expect(client.getQueryData(["private-trip"])).toBeUndefined();
   });
   it("shows an actionable invalid-reset-link state", () => {
     render(<AuthForm mode="reset" invalidLink />);

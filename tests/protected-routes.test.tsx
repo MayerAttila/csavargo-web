@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import ProtectedLayout from "@/app/(protected)/layout";
 import Overview from "@/app/(protected)/attekintes/page";
 
 const { requireServerMe } = vi.hoisted(() => ({ requireServerMe: vi.fn() }));
 vi.mock("@/lib/server-session", () => ({ requireServerMe }));
 vi.mock("@/components/auth/dashboard", () => ({ Dashboard: () => <h1>Védett áttekintés</h1> }));
+vi.mock("@/components/layout/app-shell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <>{children}</> }));
 
 beforeEach(() => { vi.resetAllMocks(); });
 describe("V12: protected route group", () => {

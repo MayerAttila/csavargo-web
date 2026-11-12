@@ -29,6 +29,17 @@ A védett layout ellenőrzi a munkamenetet; a személyes adatot használó oldal
 Az áttekintő oldal szerveroldalon ellenőrzi a munkamenetet. A jelszó-visszaállítás minden korábbi munkamenetet visszavon.
 A felület saját Tailwind komponenseket használ; a munkamenetet HttpOnly süti kezeli.
 
+## Belépés utáni navigáció
+
+A `(protected)` layout közös alkalmazáskeretet használ. Asztali nézetben keskeny ikonsáv látható,
+amely rámutatásra vagy billentyűzetes fókuszra kinyílik; a nyíl gombbal nyitva rögzíthető.
+Mobilon a menügomb modális oldalsávot nyit, fókuszcsapdával, Escape-bezárással és háttérgörgetés-tiltással.
+Navigációkor és asztali méretre váltáskor bezáródik.
+
+Az oldalsáv alján megjelenítésváltó, kijelentkezés és felhasználói név/e-mail szerepel.
+A még fejlesztés alatt álló menüpontok inaktívak, „Hamarosan” jelöléssel; nincs nem létező oldalra mutató link.
+A nyilvános oldalakon nincs sidebar. A kijelentkezés minden védett oldalról elérhető, törli a privát query-adatokat.
+
 ## Közös input komponens
 
 ```tsx
