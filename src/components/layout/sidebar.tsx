@@ -12,7 +12,6 @@ import type { Me } from "@/lib/api";
 const plannedNavigation = [
   { label: "Utazások", Icon: HiOutlineGlobeEuropeAfrica },
   { label: "Útiterv", Icon: HiOutlineCalendarDays },
-  { label: "Térkép", Icon: HiOutlineMap },
   { label: "Költségek", Icon: HiOutlineBanknotes },
   { label: "Foglalások", Icon: HiOutlineTicket },
 ];
@@ -52,6 +51,10 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
           className={`${rowClass} ${active ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineSquares2X2 aria-hidden="true" className="size-4.5" /></span>
           <span className={textClass}>Áttekintés</span>
+        </Link>
+        <Link href="/terkep" aria-label="Térkép" aria-current={pathname === "/terkep" ? "page" : undefined} title="Térkép" onClick={onNavigate}
+          className={`${rowClass} ${pathname === "/terkep" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
+          <span className={slotClass}><HiOutlineMap aria-hidden="true" className="size-4.5" /></span><span className={textClass}>Térkép</span>
         </Link>
         {plannedNavigation.map(({ label, Icon }) => <button key={label} type="button" disabled aria-label={`${label} – hamarosan`} title={`${label} – hamarosan`}
           className={`${rowClass} cursor-not-allowed text-muted-foreground/50`}>

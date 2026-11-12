@@ -86,7 +86,43 @@ Az auth hibaszövegeit a `authError` a hibakód, HTTP-státusz és művelet alap
 (például foglalt e-mail-cím, nem engedélyezett webcím, elérhetetlen regisztrációs szolgáltatás).
 A szerver nyers belső hibaüzenete nem kerül a felületre.
 
-## Ellenőrzés
+## Térképes próbaoldal
+
+A belépés után elérhető `/terkep` oldal a Mapbox-integráció kipróbálására szolgál.
+A pontok kizárólag memóriában élnek; frissítéskor a három budapesti mintapont tér vissza.
+Kereshetsz városra, címre vagy látnivalóra, kattintással saját pontot vehetsz fel, válthatsz
+normál/műholdas nézet között, és gombnyomásra lekérheted a saját helyzetedet.
+A normál térkép követi a világos/sötét témát. A térkép 2D; útvonaltervezés még nincs.
+
+Az `.env.local` fájlban állítsd be a `NEXT_PUBLIC_MAPBOX_TOKEN` változót egy saját **nyilvános `pk.*`**
+Mapbox-tokenre. Titkos `sk.*` token nem kerülhet a frontendbe. A Mapbox-fiókban korlátozd az engedélyezett
+URL-eket a használt fejlesztői és éles webcímekre; a fejlesztői localhost/LAN-címet is add hozzá, ha használod.
+A tokennek térképstílusokhoz/fontokhoz és a Search Box szolgáltatáshoz kell hozzáférnie.
+Változtatás után indítsd újra a fejlesztői szervert; éles kiadásnál új build szükséges.
+Token nélkül a helylista kipróbálható, a térkép beállításra váró állapotot mutat.
+
+A közös elemek a `src/components/maps` mappában vannak:
+
+- `MapCanvas`: böngészőben betöltött térképmotor, pontok, kijelölés, kattintás, kamerakérések; nincs auth vagy mentés.
+- `MapPoint`: stabil `id`, `label`, `[longitude, latitude]`, opcionális `address` és `source`.
+- `PlaceSearch`, `PlaceList`: külön is beépíthető kezelőfelület; törlés közvetlenül a helylista soraiban.
+- `MapExplorer`: kizárólag a próbaoldal állapota, mintapontjai és gombjai.
+
+A befogadó komponens kezeli a pontokat és a kijelölést. A `MapCanvas` `cameraCommand` új objektummal
+ismételhető `view` vagy `fit` kamerakérést fogad. A téma/stílusváltás megőrzi a kamerát és a pontokat;
+a komponens a konténerméretet is figyeli, és kilépéskor felszabadítja az erőforrásokat.
+A Mapbox vendor CSS a root layoutban van, saját stílusok kizárólag Tailwind utilityk.
+
+A kereső a [Search Box API](https://docs.mapbox.com/api/search/search-box/) `suggest`/`retrieve`
+végpontjait használja, magyar nyelvvel, 350 ms késleltetéssel és session-tokenekkel.
+A szolgáltató eredményei ideiglenes használatúak: nem kerülnek localStorage-ba, adatbázisba vagy query-cache-be.
+A [Mapbox Standard](https://docs.mapbox.com/map-styles/reference/standard/) stílus 3D objektumai ki vannak kapcsolva.
+
+A unit tesztek mockolják a Mapbox motort és a hálózatot, ezért token nélkül futnak a CI-ben.
+Valódi tokennel ellenőrizd a térkép és keresés betöltését, a hely kiválasztását, a 2D/műholdas és témaváltást,
+a saját helyzetet, a billentyűzetes használatot, a sidebar átméretezést és a mobilos helypanelt.
+
+## Ellenőrzési parancsok
 
 `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm build`.
 A teljes Mailpit/Playwright auth-folyamat a fő repository `pnpm test:e2e` parancsával fut.

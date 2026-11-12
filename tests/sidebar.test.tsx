@@ -43,6 +43,7 @@ describe("protected sidebar", () => {
   it("marks the active route, shows user details, and disables planned destinations", () => {
     renderShell();
     expect(screen.getByRole("link", { name: "Áttekintés" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Térkép" })).toHaveAttribute("href", "/terkep");
     expect(screen.getByRole("button", { name: "Utazások – hamarosan" })).toBeDisabled();
     const sidebar = within(screen.getByRole("complementary", { name: "Oldalsáv" }));
     expect(sidebar.getByText("Teszt Utazó")).toBeInTheDocument();

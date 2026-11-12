@@ -9,6 +9,7 @@ describe("shared Input", () => {
     ["name", "Név", "text", "name"],
     ["email", "E-mail-cím", "email", "email"],
     ["password", "Jelszó", "password", "current-password"],
+    ["search", "Hely keresése", "search", "off"],
   ] as const)("provides accessible %s defaults and a decorative icon", (type, label, nativeType, autoComplete) => {
     const { container } = render(<Input type={type} />);
     const input = screen.getByLabelText(label, { exact: true });

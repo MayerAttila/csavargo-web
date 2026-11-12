@@ -1,8 +1,8 @@
 "use client";
 import { useId, useState, type ComponentPropsWithRef } from "react";
-import { HiOutlineUser, HiOutlineEnvelope, HiOutlineLockClosed, HiOutlinePencilSquare, HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2";
+import { HiOutlineUser, HiOutlineEnvelope, HiOutlineLockClosed, HiOutlinePencilSquare, HiOutlineEye, HiOutlineEyeSlash, HiOutlineMagnifyingGlass } from "react-icons/hi2";
 
-export type InputType = "text" | "name" | "email" | "password";
+export type InputType = "text" | "name" | "email" | "password" | "search";
 export type InputProps = Omit<ComponentPropsWithRef<"input">, "type"> & {
   type?: InputType;
   label?: string;
@@ -10,6 +10,7 @@ export type InputProps = Omit<ComponentPropsWithRef<"input">, "type"> & {
 };
 
 const presets = {
+  search: { label: "Hely keresése", icon: HiOutlineMagnifyingGlass, autoComplete: "off" },
   text: { label: "Szöveg", icon: HiOutlinePencilSquare, autoComplete: undefined },
   name: { label: "Név", icon: HiOutlineUser, autoComplete: "name" },
   email: { label: "E-mail-cím", icon: HiOutlineEnvelope, autoComplete: "email" },
