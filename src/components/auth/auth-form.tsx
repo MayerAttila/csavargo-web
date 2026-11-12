@@ -6,7 +6,8 @@ import { notify } from "@/lib/notifications";
 import { authClient } from "@/lib/auth-client";
 import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { registrationSchema, loginSchema, emailSchema, passwordSchema, authError } from "@/lib/auth-validation";
-import { Field, buttonClass } from "./field";
+import { Input } from "@/components/ui/input";
+import { buttonClass } from "./field";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 const titles: Record<Mode, string> = {
@@ -77,10 +78,10 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
     <p className="mb-6 mt-2 text-sm text-muted-foreground">A következő közös élmény itt kezdődik.</p>
     {invalidLink || (mode === "reset" && !token) ? <div role="alert" className="space-y-4"><p>A hivatkozás érvénytelen vagy lejárt.</p><Link className="text-brand underline" href="/elfelejtett-jelszo">Új hivatkozás kérése</Link></div> : <form method="post" onSubmit={submit} noValidate className="space-y-4" aria-busy={!hydrated || pending}>
       <fieldset disabled={!hydrated || pending} className="space-y-4">
-      {mode === "register" && <Field id="name" name="name" label="Név" autoComplete="name" required maxLength={100} error={errors.name} />}
-      {mode !== "reset" && <Field id="email" name="email" label="E-mail-cím" type="email" autoComplete="email" required error={errors.email} />}
-      {mode !== "forgot" && <Field id="password" name="password" label="Jelszó" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required maxLength={128} error={errors.password} />}
-      {(mode === "register" || mode === "reset") && <Field id="confirmPassword" name="confirmPassword" label="Jelszó megerősítése" type="password" autoComplete="new-password" required maxLength={128} error={errors.confirmPassword} />}
+      {mode === "register" && <Input type="name" id="name" required maxLength={100} error={errors.name} />}
+      {mode !== "reset" && <Input type="email" id="email" required error={errors.email} />}
+      {mode !== "forgot" && <Input type="password" id="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required maxLength={128} error={errors.password} />}
+      {(mode === "register" || mode === "reset") && <Input type="password" id="confirmPassword" name="confirmPassword" label="Jelszó megerősítése" autoComplete="new-password" required maxLength={128} error={errors.confirmPassword} />}
       <button className={`${buttonClass} w-full`} type="submit" disabled={!hydrated || pending}>{!hydrated ? "Űrlap betöltése…" : pending ? "Folyamatban…" : mode === "login" ? "Belépés" : mode === "register" ? "Regisztráció" : mode === "forgot" ? "Hivatkozás küldése" : "Jelszó mentése"}</button>
       </fieldset>
       <noscript><p role="alert" className="text-sm text-muted-foreground">Az űrlap használatához engedélyezd a JavaScriptet a böngésződben.</p></noscript>

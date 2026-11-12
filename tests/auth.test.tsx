@@ -21,7 +21,7 @@ describe("Hungarian auth UI", () => {
     const form = document.querySelector("form")!;
     expect(form.getAttribute("method")).toBe("post");
     expect(form.querySelector("fieldset")?.disabled).toBe(true);
-    expect(form.querySelector("button")?.disabled).toBe(true);
+    expect(form.querySelector('button[type="submit"]')?.disabled).toBe(true);
   });
   it("V1/V10: hydrated registration calls the auth client and opens the dashboard", async () => {
     mocks.register.mockResolvedValue({ data: { user: me.user }, error: null });

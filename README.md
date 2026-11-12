@@ -29,6 +29,24 @@ A védett layout ellenőrzi a munkamenetet; a személyes adatot használó oldal
 Az áttekintő oldal szerveroldalon ellenőrzi a munkamenetet. A jelszó-visszaállítás minden korábbi munkamenetet visszavon.
 A felület saját Tailwind komponenseket használ; a munkamenetet HttpOnly süti kezeli.
 
+## Közös input komponens
+
+```tsx
+import { Input } from "@/components/ui/input";
+
+<Input type="name" required />
+<Input type="email" required />
+<Input type="password" autoComplete="new-password" required />
+<Input type="password" name="confirmPassword" label="Jelszó megerősítése" autoComplete="new-password" />
+```
+
+A típus automatikusan beállítja az ikont, az alapértelmezett magyar címkét, az autocomplete-ot és a mező nevét.
+A címke a mezőn belül lebeg: fókusznál vagy kitöltött értéknél feljebb mozdul. A címke valódi, akadálymentes HTML label;
+az animáció a csökkentett mozgás beállítását is figyelembe veszi. Minden stílus Tailwind utility, nincs új UI-library.
+A `name` típus natív `text` mezőként működik. A `password` mező szem ikonnal kapcsolható látható/rejtett módba.
+A szokásos input propok, saját `id`, `name`, `label`, `ref`, `disabled`, `readOnly` és `onChange` is használhatók.
+Az `error` hibásnak jelöli a mezőt; a hiba szövegét a hívó komponens toastban jeleníti meg.
+
 ## Értesítések
 
 Az egész alkalmazásban React Hot Toast működik, egyetlen `AppToaster` komponenssel a közös providerben.
