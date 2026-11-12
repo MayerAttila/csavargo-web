@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { HiOutlineSquares2X2, HiOutlineGlobeEuropeAfrica, HiOutlineCalendarDays, HiOutlineMap,
-  HiOutlineBanknotes, HiOutlineTicket, HiOutlineArrowRightOnRectangle, HiOutlineBars3,
+  HiOutlineBanknotes, HiOutlineTicket, HiArrowRightOnRectangle, HiOutlineBars3,
   HiOutlineXMark, HiOutlineMoon, HiOutlineSun, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight } from "react-icons/hi2";
 import { Brand } from "@/components/brand";
 import type { Me } from "@/lib/api";
@@ -16,7 +16,7 @@ const plannedNavigation = [
   { label: "Költségek", Icon: HiOutlineBanknotes },
   { label: "Foglalások", Icon: HiOutlineTicket },
 ];
-const rowClass = "flex h-11 w-full items-center gap-1.5 lg:h-10 overflow-hidden rounded-xl px-2 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+const rowClass = "flex h-11 w-full items-center gap-1.5 lg:h-9 overflow-hidden rounded-lg px-1.5 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 const slotClass = "flex w-8 shrink-0 items-center justify-center";
 const subscribeToHydration = () => () => {};
 const clientReady = () => true;
@@ -35,8 +35,8 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
   const initials = user.name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join("").toLocaleUpperCase("hu");
   const active = pathname === "/attekintes";
   return <>
-    <header className="flex h-12 shrink-0 items-center gap-1.5 overflow-hidden px-2">
-      <Brand href="/attekintes" className="[&>span:last-child]:hidden" />
+    <header className="flex h-10 shrink-0 items-center gap-1.5 overflow-hidden px-2">
+      <Brand href="/attekintes" className="[&>span:last-child]:hidden [&>span:first-child]:size-7 [&_img]:size-10.5" />
       <span className={`${textClass} flex-1 text-base font-bold tracking-tight text-brand`}>csavargó.</span>
       <button type="button" onClick={onToggle} aria-label={mobile ? "Menü bezárása" : expanded ? "Rögzítés feloldása" : "Oldalsáv rögzítése"}
         title={mobile ? "Menü bezárása" : expanded ? "Rögzítés feloldása" : "Oldalsáv rögzítése"}
@@ -45,7 +45,7 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
         {mobile ? <HiOutlineXMark aria-hidden="true" className="size-4.5" /> : expanded ? <HiOutlineChevronDoubleLeft aria-hidden="true" className="size-4" /> : <HiOutlineChevronDoubleRight aria-hidden="true" className="size-4" />}
       </button>
     </header>
-    <nav aria-label="Fő navigáció" className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+    <nav aria-label="Fő navigáció" className="mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
       <p className={`${textClass} mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground`}>Tervezés</p>
       <div className="space-y-0.5">
         <Link href="/attekintes" aria-label="Áttekintés" aria-current={active ? "page" : undefined} title="Áttekintés" onClick={onNavigate}
@@ -70,11 +70,11 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
       </button>
       <button type="button" disabled={pending} onClick={onLogout} aria-label="Kijelentkezés" title="Kijelentkezés"
         className={`${rowClass} text-red-600 hover:bg-red-500/10 disabled:cursor-wait disabled:opacity-50 dark:text-red-400`}>
-        <span className={slotClass}><HiOutlineArrowRightOnRectangle aria-hidden="true" className="size-4.5" /></span>
+        <span className={slotClass}><HiArrowRightOnRectangle aria-hidden="true" className="size-5 shrink-0" /></span>
         <span className={textClass}>{pending ? "Kijelentkezés…" : "Kijelentkezés"}</span>
       </button>
-      <div className="mt-2 flex h-14 items-center gap-2 overflow-hidden border-t border-border px-2" title={`${user.name} · ${user.email}`}>
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-[10px] font-bold text-brand" aria-hidden="true">{initials}</span>
+      <div className="mt-2 flex h-12 items-center gap-1.5 overflow-hidden border-t border-border px-1.5" title={`${user.name} · ${user.email}`}>
+        <span className={slotClass}><span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-[10px] font-bold text-brand" aria-hidden="true">{initials}</span></span>
         <div className={`${textClass} flex-1`}><p className="truncate text-sm font-semibold">{user.name}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div>
       </div>
     </footer>
@@ -96,7 +96,7 @@ export function Sidebar(props: SidebarProps) {
     return () => { desktop.removeEventListener("change", onResize); document.body.classList.remove("overflow-hidden"); };
   }, [closeMobile]);
   return <>
-    <aside aria-label="Oldalsáv" className={`group/sidebar hidden shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface p-1.5 shadow-sm transition-[width] duration-300 motion-reduce:transition-none lg:flex ${pinned ? "w-56" : "w-16 hover:w-56 focus-within:w-56"}`}>
+    <aside aria-label="Oldalsáv" className={`group/sidebar hidden shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-sm transition-[width] duration-300 motion-reduce:transition-none lg:flex ${pinned ? "w-56" : "w-14 hover:w-56 focus-within:w-56"}`}>
       <SidebarMenu {...props} expanded={pinned} onToggle={() => setPinned((value) => !value)} />
     </aside>
     <header className="flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 lg:hidden">
