@@ -49,7 +49,9 @@ notify.promise(saveTrip(), {
 A globális QueryClient automatikusan jelez lekérdezési és módosítási hibánál, szerverhiba-részletek megjelenítése nélkül.
 A query/mutation `meta.errorMessage` magyar szöveget állíthat be; mutation esetén a `meta.successMessage`
 siker-toastot is kérhet. A `meta.silent: true` kikapcsolja az automatikus értesítést, ha a komponens maga kezeli.
-A kijelentkezett munkamenet (`UNAUTHORIZED`) nem kap általános hiba-toastot. A mezővalidáció továbbra is inline marad.
+A kijelentkezett munkamenet (`UNAUTHORIZED`) nem kap általános hiba-toastot. Az űrlapok validációs és műveleti
+visszajelzései kizárólag toastban jelennek meg, ismétlődő inline hiba- vagy sikerüzenet nélkül.
+A hibás mezőket az `aria-invalid` attribútum jelöli.
 Az auth sikerüzenetei teljes oldalas navigáció után is megjelennek; csak rögzített értesítési kód kerül sessionStorage-ba.
 Az auth hibaszövegeit a `authError` a hibakód, HTTP-státusz és művelet alapján választja ki
 (például foglalt e-mail-cím, nem engedélyezett webcím, elérhetetlen regisztrációs szolgáltatás).

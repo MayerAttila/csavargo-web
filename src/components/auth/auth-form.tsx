@@ -20,10 +20,7 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
   const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("");
-  const [success, setSuccess] = useState(false);
   function showError(text: string) {
-    setMessage(text);
     notify.error(text, { id: "auth-form" });
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -33,13 +30,18 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
     const values = { name: String(data.get("name") ?? ""), email: String(data.get("email") ?? "").trim(), password: String(data.get("password") ?? "") };
     const parsed = mode === "register" ? registrationSchema.safeParse(values) : mode === "login" ? loginSchema.safeParse(values)
       : mode === "forgot" ? emailSchema.safeParse(values.email) : passwordSchema.safeParse(values.password);
-    setErrors({}); setMessage("");
+    setErrors({});
     if (!parsed.success) {
       setErrors(Object.fromEntries(parsed.error.issues.map((issue) => [String(issue.path[0] ?? (mode === "forgot" ? "email" : "password")), issue.message])));
+      showError(parsed.error.issues[0].message);
       return;
     }
     if (mode === "register" || mode === "reset") {
-      if (values.password !== data.get("confirmPassword")) { setErrors({ confirmPassword: "A két jelszó nem egyezik." }); return; }
+      if (values.password !== data.get("confirmPassword")) {
+        setErrors({ confirmPassword: "A két jelszó nem egyezik." });
+        showError("A két jelszó nem egyezik.");
+        return;
+      }
     }
     setPending(true);
     try {
@@ -50,7 +52,6 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
       if (result.error) { showError(authError(result.error, mode)); return; }
       if (mode === "forgot") {
         const confirmation = "Ha ehhez az e-mail-címhez tartozik fiók, elküldtük a jelszó-visszaállító hivatkozást.";
-        setSuccess(true); setMessage(confirmation);
         notify.success(confirmation, { id: "auth-form" });
       }
       else if (mode === "reset") {
@@ -80,7 +81,6 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
       {mode !== "reset" && <Field id="email" name="email" label="E-mail-cím" type="email" autoComplete="email" required error={errors.email} />}
       {mode !== "forgot" && <Field id="password" name="password" label="Jelszó" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required maxLength={128} error={errors.password} />}
       {(mode === "register" || mode === "reset") && <Field id="confirmPassword" name="confirmPassword" label="Jelszó megerősítése" type="password" autoComplete="new-password" required maxLength={128} error={errors.confirmPassword} />}
-      {message && <p role={success ? "status" : "alert"} className={success ? "text-sm text-accent" : "text-sm text-red-600 dark:text-red-400"}>{message}</p>}
       <button className={`${buttonClass} w-full`} type="submit" disabled={!hydrated || pending}>{!hydrated ? "Űrlap betöltése…" : pending ? "Folyamatban…" : mode === "login" ? "Belépés" : mode === "register" ? "Regisztráció" : mode === "forgot" ? "Hivatkozás küldése" : "Jelszó mentése"}</button>
       </fieldset>
       <noscript><p role="alert" className="text-sm text-muted-foreground">Az űrlap használatához engedélyezd a JavaScriptet a böngésződben.</p></noscript>

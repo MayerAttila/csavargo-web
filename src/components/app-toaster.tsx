@@ -9,7 +9,7 @@ export function AppToaster() {
     const message = consumeAuthNotice();
     if (message) notify.success(message, { id: "auth-navigation" });
   }, []);
-  return <Toaster position="bottom-right" toastOptions={{
+  return <Toaster position="top-right" toastOptions={{
     duration: 5000,
     className: "!rounded-xl !border !border-border !bg-surface !text-foreground !shadow-lg",
     error: { duration: 6000 },

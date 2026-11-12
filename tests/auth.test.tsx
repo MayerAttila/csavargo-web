@@ -61,7 +61,7 @@ describe("Hungarian auth UI", () => {
     expect(authError({ status: 0 }, "register")).toContain("Nem sikerült elérni a szervert.");
     expect(authError({ code: "UNKNOWN" }, "reset")).toContain("Kérj új visszaállító hivatkozást.");
   });
-  it("shows a specific registration error in the form and its toast", async () => {
+  it("shows a specific registration error only in its toast", async () => {
     mocks.register.mockResolvedValue({ error: { code: "INVALID_ORIGIN", status: 403 } });
     render(<AuthForm mode="register" />);
     await userEvent.type(screen.getByLabelText("Név", { exact: true }), "Utazó");
@@ -69,8 +69,8 @@ describe("Hungarian auth UI", () => {
     await userEvent.type(screen.getByLabelText("Jelszó", { exact: true }), "test-password-123");
     await userEvent.type(screen.getByLabelText("Jelszó megerősítése", { exact: true }), "test-password-123");
     await userEvent.click(screen.getByRole("button", { name: "Regisztráció", exact: true }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Ez a webcím nincs engedélyezve");
     expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("Ez a webcím nincs engedélyezve"), { id: "auth-form" });
+    expect(screen.queryByText(/Ez a webcím nincs engedélyezve/)).not.toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
   it("V11: login verifies the new session before opening the protected page", async () => {
@@ -89,15 +89,16 @@ describe("Hungarian auth UI", () => {
     await userEvent.type(screen.getByLabelText("E-mail-cím", { exact: true }), "utazo@example.com");
     await userEvent.type(screen.getByLabelText("Jelszó", { exact: true }), "test-password-123");
     await userEvent.click(screen.getByRole("button", { name: "Belépés", exact: true }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Nem sikerült ellenőrizni a bejelentkezést.");
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining("Nem sikerült ellenőrizni a bejelentkezést."), { id: "auth-form" }));
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
-  it("shows inline validation without sending a request", async () => {
+  it("shows validation in a toast and marks invalid fields without inline text", async () => {
     render(<AuthForm mode="login" />);
     await userEvent.click(screen.getByRole("button", { name: "Belépés" }));
-    expect(screen.getByText("Érvényes e-mail-címet adj meg.")).toBeVisible();
+    expect(screen.queryByText("Érvényes e-mail-címet adj meg.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("E-mail-cím")).toHaveAttribute("aria-invalid", "true");
     expect(mocks.login).not.toHaveBeenCalled();
-    expect(mocks.toastError).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledWith("Érvényes e-mail-címet adj meg.", { id: "auth-form" });
   });
   it("disables submit while pending and shows translated login failures", async () => {
     let finish!: (value: unknown) => void;
@@ -108,8 +109,8 @@ describe("Hungarian auth UI", () => {
     await userEvent.click(screen.getByRole("button", { name: "Belépés" }));
     expect(screen.getByRole("button", { name: "Folyamatban…" })).toBeDisabled();
     finish({ error: { code: "INVALID_EMAIL_OR_PASSWORD" } });
-    expect(await screen.findByRole("alert")).toHaveTextContent("Hibás e-mail-cím vagy jelszó.");
-    expect(mocks.toastError).toHaveBeenCalledWith("Hibás e-mail-cím vagy jelszó.", { id: "auth-form" });
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith("Hibás e-mail-cím vagy jelszó.", { id: "auth-form" }));
+    expect(screen.queryByText("Hibás e-mail-cím vagy jelszó.")).not.toBeInTheDocument();
   });
   it("renders unverified banner, resends email, and clears all private queries on logout", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
