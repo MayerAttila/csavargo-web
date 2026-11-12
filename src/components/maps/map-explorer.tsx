@@ -5,6 +5,9 @@ import { notify } from "@/lib/notifications";
 import { MapCanvas } from "./map-canvas";
 import { PlaceSearch } from "./place-search";
 import { PlaceList } from "./place-list";
+import type { PlaceInfoStatus } from "./place-info";
+import { findSamplePlace } from "./search-api";
+import { isPublicMapToken, mapErrorMessage } from "./map-errors";
 import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapCameraCommand, type MapPoint } from "./types";
 
 const SAMPLE_POINTS: MapPoint[] = [
@@ -21,12 +24,30 @@ export function MapExplorer() {
   const [cameraCommand, setCameraCommand] = useState<MapCameraCommand>();
   const [panelOpen, setPanelOpen] = useState(true);
   const [locating, setLocating] = useState(false);
+  const [infoStates, setInfoStates] = useState<Record<string, PlaceInfoStatus | undefined>>({});
+  const infoRequest = useRef<AbortController | null>(null);
   const manualCount = useRef(0);
   const locationVersion = useRef(0);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-  useEffect(() => () => { locationVersion.current++; }, []);
+  useEffect(() => () => { locationVersion.current++; infoRequest.current?.abort(); }, []);
+
+  async function loadInfo(point: MapPoint) {
+    const controller = new AbortController(); infoRequest.current = controller;
+    setInfoStates((current) => ({ ...current, [point.id]: "loading" }));
+    try {
+      const match = await findSamplePlace(point, token, controller.signal);
+      if (controller.signal.aborted) return;
+      setPoints((current) => current.map((item) => item.id === point.id ? { ...item, info: match?.info ?? {} } : item));
+      setInfoStates((current) => ({ ...current, [point.id]: undefined }));
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setInfoStates((current) => ({ ...current, [point.id]: "error" }));
+      notify.error(mapErrorMessage(error), { id: "place-info" });
+    }
+  }
 
   function addPoint(point: MapPoint) {
+    infoRequest.current?.abort();
     setPoints((current) => [...current.filter((item) => item.id !== point.id), point]);
     setSelectedId(point.id); setPanelOpen(true);
     setCameraCommand({ type: "view", view: { center: point.coordinates, zoom: 14 } });
@@ -38,14 +59,18 @@ export function MapExplorer() {
   function select(id: string) {
     const point = points.find((item) => item.id === id);
     if (!point) return;
+    infoRequest.current?.abort();
     setSelectedId(id); setPanelOpen(true);
     setCameraCommand({ type: "view", view: { center: point.coordinates, zoom: 14 } });
+    if (point.source === "sample" && !point.info && isPublicMapToken(token)) void loadInfo(point);
   }
   function remove(id: string) {
+    if (selectedId === id) infoRequest.current?.abort();
     setPoints((current) => current.filter((point) => point.id !== id));
     setSelectedId((current) => current === id ? undefined : current);
   }
   function reset() {
+    infoRequest.current?.abort(); setInfoStates({});
     locationVersion.current++; setLocating(false); manualCount.current = 0;
     setPoints(SAMPLE_POINTS); setSelectedId(undefined); setBasemap("standard");
     setCameraCommand({ type: "view", view: BUDAPEST_VIEW });
@@ -89,7 +114,7 @@ export function MapExplorer() {
         </button>
         <div id="explorer-places" className={`${panelOpen ? "block" : "hidden"} space-y-5 p-4 lg:block`}>
           <PlaceSearch token={token} onSelect={addPoint} />
-          <PlaceList points={points} selectedId={selectedId} onSelect={select} onRemove={remove} />
+          <PlaceList points={points} selectedId={selectedId} onSelect={select} onRemove={remove} infoStates={infoStates} />
         </div>
       </aside>
     </div>

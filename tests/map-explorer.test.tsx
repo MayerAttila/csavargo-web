@@ -1,15 +1,17 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MapExplorer } from "@/components/maps/map-explorer";
 import type { MapCanvasProps } from "@/components/maps/map-canvas";
 
-const mock = vi.hoisted(() => ({ props: null as MapCanvasProps | null, error: vi.fn() }));
+const mock = vi.hoisted(() => ({ props: null as MapCanvasProps | null, error: vi.fn(), findInfo: vi.fn() }));
+vi.mock("@/components/maps/search-api", async (importOriginal) => ({ ...await importOriginal<typeof import("@/components/maps/search-api")>(), findSamplePlace: mock.findInfo }));
 vi.mock("@/lib/notifications", () => ({ notify: { error: mock.error } }));
 vi.mock("@/components/maps/map-canvas", () => ({ MapCanvas: (props: MapCanvasProps) => {
   mock.props = props;
   return <div aria-label="Teszt térkép"><button onClick={() => props.onMapClick([19.1, 47.5])}>Pont a térképen</button><button onClick={() => props.onSelect("sample:heroes")}>Hősök jelölő</button></div>;
 } }));
-beforeEach(() => { mock.error.mockClear(); });
+beforeEach(() => { mock.error.mockClear(); mock.findInfo.mockReset(); });
+afterEach(() => { vi.unstubAllEnvs(); });
 describe("V18: map explorer state", () => {
   it("synchronizes list/markers and supports add/remove/reset without storage", () => {
     render(<MapExplorer />);
@@ -36,6 +38,28 @@ describe("V18: map explorer state", () => {
     render(<MapExplorer />); const toggle = screen.getByRole("button", { name: "Helyek (3)" });
     fireEvent.click(toggle); expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle); expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+  it("loads sample metadata on selection and reuses it for the current page", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    mock.findInfo.mockResolvedValue({ info: { rating: 4.6, priceLevel: "$$" } });
+    render(<MapExplorer />);
+    expect(mock.findInfo).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Hely megnyitása: Országház" })); });
+    expect(screen.getByRole("region", { name: "Országház adatai" })).toHaveTextContent("4,6 / 5");
+    fireEvent.click(screen.getByRole("button", { name: "Hely megnyitása: Országház" }));
+    expect(mock.findInfo).toHaveBeenCalledOnce();
+  });
+  it("aborts sample metadata on reset and ignores late responses", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    let resolve!: (value: unknown) => void;
+    mock.findInfo.mockImplementation(() => new Promise((done) => { resolve = done; }));
+    render(<MapExplorer />);
+    fireEvent.click(screen.getByRole("button", { name: "Hely megnyitása: Országház" }));
+    expect(screen.getByText("Helyadatok betöltése…")).toBeInTheDocument();
+    const signal = mock.findInfo.mock.calls[0][2] as AbortSignal;
+    fireEvent.click(screen.getByRole("button", { name: "Alaphelyzet" })); expect(signal.aborted).toBe(true);
+    await act(async () => { resolve({ info: { rating: 5 } }); });
+    expect(mock.props?.points.every((point) => !point.info)).toBe(true);
   });
   it("requests location only on click; permission denial leaves existing points intact", () => {
     const getCurrentPosition = vi.fn((_success, failure) => failure({ code: 1 }));

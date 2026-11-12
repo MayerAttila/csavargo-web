@@ -33,7 +33,8 @@ describe("V20: Mapbox search", () => {
     const retrieve = new URL(fetchMock.mock.calls[1][0]);
     expect(retrieve.pathname).toContain("retrieve/budapest");
     expect(retrieve.searchParams.get("session_token")).toBe(first.searchParams.get("session_token"));
-    expect(onSelect).toHaveBeenCalledWith({ id: "mapbox:budapest", label: "Budapest", coordinates: [19.04, 47.49], address: "Budapest, Magyarország", source: "search" });
+    expect(retrieve.searchParams.get("attribute_sets")).toBe("visit,venue");
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "mapbox:budapest", label: "Budapest", coordinates: [19.04, 47.49], address: "Budapest, Magyarország", source: "search" }));
     search("Buda"); await advance();
     expect(new URL(fetchMock.mock.calls[2][0]).searchParams.get("session_token")).not.toBe(first.searchParams.get("session_token"));
   });

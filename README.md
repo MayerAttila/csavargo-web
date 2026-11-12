@@ -106,6 +106,13 @@ A közös elemek a `src/components/maps` mappában vannak:
 - `MapCanvas`: böngészőben betöltött térképmotor, pontok, kijelölés, kattintás, kamerakérések; nincs auth vagy mentés.
 - `MapPoint`: stabil `id`, `label`, `[longitude, latitude]`, opcionális `address` és `source`.
 - `PlaceSearch`, `PlaceList`: külön is beépíthető kezelőfelület; törlés közvetlenül a helylista soraiban.
+- `PlaceInfoPanel`: a kijelölt sor alatt cím, kategória, értékelés, relatív árszint, heti nyitvatartás,
+  weboldal és telefon, amennyiben a Mapbox visszaadja. Hiányzó adat nem kap kitalált értéket.
+
+A keresés már a részletes `visit,venue` metaadatokat is kéri. A mintapontok adatait csak kattintáskor
+keressük meg, pontos névegyezéssel és legfeljebb 500 méteres távolsággal; a találat csak az aktuális
+oldal memóriájában marad. Saját koordinátaponthoz nem társítunk automatikusan egy közeli üzletet.
+Az árszint `$`–`$$$$` jelölés, nem konkrét belépőjegyár vagy forintbecslés; a szolgáltató adatlefedettsége helyenként eltér.
 - `MapExplorer`: kizárólag a próbaoldal állapota, mintapontjai és gombjai.
 
 A befogadó komponens kezeli a pontokat és a kijelölést. A `MapCanvas` `cameraCommand` új objektummal

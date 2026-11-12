@@ -1,10 +1,21 @@
 export type Coordinates = [longitude: number, latitude: number];
 
+export type OpeningPeriod = { open: { day: number; time: string }; close?: { day: number; time: string } };
+export type PlaceInfo = {
+  rating?: number;
+  priceLevel?: "$" | "$$" | "$$$" | "$$$$";
+  openingHours?: OpeningPeriod[];
+  phone?: string;
+  website?: string;
+  categories?: string[];
+};
+
 export type MapPoint = {
   id: string;
   label: string;
   coordinates: Coordinates;
   address?: string;
+  info?: PlaceInfo;
   source?: "sample" | "search" | "manual" | "geolocation";
 };
 
