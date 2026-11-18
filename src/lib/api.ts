@@ -5,10 +5,18 @@ export const meKey = ["me"] as const;
 export type SavedTripPlan = paths["/api/trips/{slug}"]["get"]["responses"][200]["content"]["application/json"];
 export type TripPlan = SavedTripPlan["plan"];
 export type TripSummary = paths["/api/trips"]["get"]["responses"][200]["content"]["application/json"][number];
+type TripCoverResponse = paths["/api/trips/{slug}/cover"]["get"]["responses"][200]["content"]["application/json"];
 export type CreateTrip = paths["/api/trips"]["post"]["requestBody"]["content"]["application/json"];
 
 export function tripApiPath(slug: string) {
   return `/api/trips/${encodeURIComponent(slug)}`;
+}
+
+export async function getTripCover(slug: string, signal: AbortSignal): Promise<TripCoverResponse["cover"]> {
+  const response = await fetch(`${tripApiPath(slug)}/cover`, { cache: "no-store", signal });
+  if (!response.ok) throw new Error("TRIP_COVER_UNAVAILABLE");
+  const result: TripCoverResponse = await response.json();
+  return result.cover;
 }
 
 export async function getTripPlan(slug: string): Promise<SavedTripPlan> {
