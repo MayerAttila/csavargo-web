@@ -16,18 +16,19 @@ const gallery: MapPoint = { id: "mapbox:gallery", label: "Zsolnay Negyed", coord
 vi.mock("@/components/maps/place-search", () => ({
   PlaceSearch: ({ label, onSelect }: { label: string; onSelect: (point: MapPoint) => void }) => (
     <div aria-label={label} role="group">
-      {(label.startsWith("Úti cél") ? [pecs, budapest] : [square]).map((point) =>
+      {(label.startsWith("Úti cél") ? [pecs, budapest] : label === "Szállás keresése" ? [] : [square]).map((point) =>
         <button type="button" key={point.id} onClick={() => onSelect(point)}>{point.label}</button>)}
     </div>
   ),
 }));
 
 vi.mock("@/components/maps/map-canvas", () => ({
-  MapCanvas: ({ cameraCommand, onPlaceSelect, onSelect, onViewportChange, points, discoveryPoints }: MapCanvasProps) => (
+  MapCanvas: ({ cameraCommand, onMapClick, onPlaceSelect, onSelect, onViewportChange, points, discoveryPoints }: MapCanvasProps) => (
     <section aria-label="Teszt térkép">
       <output aria-label="Térképnézet">{JSON.stringify(cameraCommand)}</output>
       <button type="button" onClick={() => onViewportChange?.([18, 46, 19, 47])}>Térképterület megadása</button>
       <button type="button" disabled={!onPlaceSelect} onClick={() => onPlaceSelect?.(gallery)}>Zsolnay jelölő</button>
+      {onMapClick && <button type="button" onClick={() => onMapClick([380, 46.075])}>Üres térképpont</button>}
       <button type="button" disabled={!onPlaceSelect} onClick={() => onPlaceSelect?.({ ...square, id: "poi:square" })}>Széchenyi jelölő</button>
       {points.map((point) => <button type="button" key={point.id} onClick={() => onSelect(point.id)}>Tervezett: {point.label}</button>)}
       {discoveryPoints?.map((point) => <button type="button" key={point.id} onClick={() => onPlaceSelect?.(point)}>Találat: {point.label}</button>)}
@@ -53,6 +54,46 @@ async function setDates(user: ReturnType<typeof userEvent.setup>, start: string,
 }
 
 describe("V25: kirándulástervező", () => {
+  it("V31: chooses a mapped place or coordinate as lodging without adding a daily stop", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    const user = userEvent.setup();
+    const date = "2026-11-18";
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={{
+      slug: "pecs-2026-11", name: "Pécs", version: 1,
+      plan: { destination: pecs, start: date, end: date, days: [] },
+    }} />);
+    const pick = button("Szállás kiválasztása a térképen");
+    await user.click(pick);
+    await user.click(button("Zsolnay jelölő"));
+    expect(screen.getByRole("textbox", { name: "Szállás" })).toHaveValue(gallery.label);
+    expect(pick).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("region", { name: "Kiválasztott hely" })).not.toBeInTheDocument();
+    await user.click(pick);
+    await user.click(button("Üres térképpont"));
+    expect(screen.getByRole("textbox", { name: "Szállás" })).toHaveValue("Térképen megjelölt szállás");
+    await user.click(button("Szállás a térképen: Térképen megjelölt szállás"));
+    expect(screen.getByLabelText("Térképnézet")).toHaveTextContent(JSON.stringify({
+      type: "view", view: { center: [20, 46.075], zoom: 15 },
+    }));
+  });
+
+  it("V31: opens the map centered on the saved lodging independently of daily stops", async () => {
+    const user = userEvent.setup();
+    const date = "2026-11-18";
+    const lodging = { id: "hotel", label: "Pécsi Hotel", coordinates: [18.225, 46.074] } satisfies MapPoint;
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={{
+      slug: "pecs-2026-11", name: "Pécs", version: 1,
+      plan: { destination: pecs, lodging, start: date, end: date, days: [] },
+    }} />);
+    await user.click(button("Lista nézet"));
+    await user.click(button("Szállás a térképen: Pécsi Hotel"));
+    expect(button("Térkép")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Térképnézet")).toHaveTextContent(
+      JSON.stringify({ type: "view", view: { center: lodging.coordinates, zoom: 15 } }),
+    );
+    expect(button("Terv mentése")).toBeDisabled();
+  });
+
   it("retries an unavailable saved plan and saves the existing draft without reloading", async () => {
     const date = "2026-11-18";
     const plan = {

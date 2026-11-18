@@ -2,16 +2,17 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { PlaceSearch } from "@/components/maps/place-search";
 import type { MapPoint } from "@/components/maps/types";
 import { createTrip } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { calendarDay, type TripDateInputs } from "./trip-calendar";
 import { TripDateFields } from "./trip-date-fields";
+import { TripDestination } from "./trip-destination";
 import { storedPoint } from "./trip-point";
 
 export function TripCreateForm() {
   const router = useRouter();
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const requestId = useRef<string | null>(null);
   const [name, setName] = useState("");
   const [destination, setDestination] = useState<MapPoint>();
@@ -50,11 +51,8 @@ export function TripCreateForm() {
         <input value={name} maxLength={200} onChange={(event) => { requestId.current = null; setName(event.target.value); }}
           className="h-11 rounded-xl border border-border/80 bg-background/70 px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-brand" />
       </label>
-      <div>
-        {destination && <p role="status" className="mb-2 text-sm font-semibold">{destination.label}</p>}
-        <PlaceSearch token={process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? ""} label={destination ? "Úti cél módosítása" : "Úti cél keresése"}
-          onSelect={(point) => { requestId.current = null; setDestination(point); }} />
-      </div>
+      <TripDestination token={token} destination={destination}
+        onChange={(point) => { requestId.current = null; setDestination(point); }} />
       <div className="grid grid-cols-2 gap-3">
         <TripDateFields dates={dates} onDates={(value) => { requestId.current = null; setDates(value); }} />
       </div>

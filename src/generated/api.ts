@@ -259,6 +259,13 @@ export interface operations {
                                 address?: string;
                                 locality?: string;
                             };
+                            lodging?: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
                             /** Format: date */
                             start: string;
                             /** Format: date */
@@ -290,6 +297,13 @@ export interface operations {
                         version: number;
                         plan: {
                             destination: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
+                            lodging?: {
                                 id: string;
                                 label: string;
                                 coordinates: (number)[];
@@ -395,6 +409,13 @@ export interface operations {
                                 address?: string;
                                 locality?: string;
                             };
+                            lodging?: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
                             /** Format: date */
                             start: string;
                             /** Format: date */
@@ -475,6 +496,13 @@ export interface operations {
                             address?: string;
                             locality?: string;
                         };
+                        lodging?: {
+                            id: string;
+                            label: string;
+                            coordinates: (number)[];
+                            address?: string;
+                            locality?: string;
+                        };
                         /** Format: date */
                         start: string;
                         /** Format: date */
@@ -507,6 +535,13 @@ export interface operations {
                         version: number;
                         plan: {
                             destination: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
+                            lodging?: {
                                 id: string;
                                 label: string;
                                 coordinates: (number)[];

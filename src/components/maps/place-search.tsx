@@ -14,9 +14,10 @@ type PlaceSearchProps = {
   onSelect: (point: MapPoint) => void;
   label?: string;
   autoFocus?: boolean;
+  compact?: boolean;
 };
 
-export function PlaceSearch({ token, onSelect, label, autoFocus }: PlaceSearchProps) {
+export function PlaceSearch({ token, onSelect, label, autoFocus, compact }: PlaceSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,7 +97,7 @@ export function PlaceSearch({ token, onSelect, label, autoFocus }: PlaceSearchPr
         if (event.key === "ArrowUp" && items.length) { event.preventDefault(); setActive((index) => (index <= 0 ? items.length - 1 : index - 1)); }
         if (event.key === "Enter") { event.preventDefault(); if (items[active] && !busy) void select(items[active]); }
       }} />
-    <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+    <div className={compact && !query ? "sr-only" : "mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground"}>
       <p id={`${listId}-hint`} role="status">{busy ? "Helyek keresése…" : results?.query === query.trim() && !items.length && open ? "Nincs találat." : "Város, cím vagy látnivaló · legalább 3 karakter"}</p>
       {enabled && query.trim().length >= 3 && <button type="button" className="shrink-0 rounded px-1 py-2 text-brand focus-visible:outline-2" onClick={() => { cancel(); setOpen(true); setRetry((value) => value + 1); }}>Újra</button>}
     </div>

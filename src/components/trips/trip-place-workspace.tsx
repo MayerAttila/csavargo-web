@@ -17,9 +17,14 @@ type Props = {
   activeDay?: number;
   canPlan: boolean;
   points: MapPoint[];
+  lodging?: MapPoint;
   candidate?: TripPlaceInfo;
   selectedId?: string;
   camera?: MapCameraCommand;
+  view: "map" | "list";
+  onViewChange: (view: "map" | "list") => void;
+  onLodgingPick?: (point: MapPoint) => void;
+  onCancelLodgingPick: () => void;
   onSelect: (point: MapPoint) => void;
   onAdd: () => void;
 };
@@ -29,8 +34,8 @@ const views = [
   { id: "list", label: "Lista nézet", Icon: HiOutlineListBullet },
 ] as const;
 
-export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidate, selectedId, camera, onSelect, onAdd }: Props) {
-  const [view, setView] = useState<"map" | "list">("map");
+export function TripPlaceWorkspace({ token, activeDay, canPlan, points, lodging, candidate, selectedId, camera, view, onViewChange,
+  onLodgingPick, onCancelLodgingPick, onSelect, onAdd }: Props) {
   const [category, setCategory] = useState<PlaceCategory | null>(null);
   const [bounds, setBounds] = useState<MapBounds>();
   const showFilters = view === "map" && canPlan && isPublicMapToken(token);
@@ -42,11 +47,12 @@ export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidat
   const updateBounds = useCallback((next: MapBounds | undefined) => {
     setBounds((current) => next && current?.every((value, index) => value === next[index]) ? current : next);
   }, []);
+  const selectOnMap = onLodgingPick ?? onSelect;
 
   return <section aria-label="Helyek kiválasztása" className="min-w-0 space-y-3 rounded-2xl border border-border/80 bg-surface p-3 shadow-sm sm:p-4">
     <div className="flex flex-wrap items-start gap-3">
       <div role="group" aria-label="Helyek nézete" className="flex shrink-0 gap-0.5 rounded-xl border border-border/80 bg-background/70 p-1">
-        {views.map(({ id, label, Icon }) => <button key={id} type="button" aria-pressed={view === id} onClick={() => setView(id)}
+        {views.map(({ id, label, Icon }) => <button key={id} type="button" aria-pressed={view === id} onClick={() => onViewChange(id)}
           className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-brand ${view === id ? "bg-action text-white shadow-sm" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <Icon aria-hidden="true" className="size-4" />{label}
         </button>)}
@@ -56,10 +62,21 @@ export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidat
       </div> : <p className="flex min-h-10 flex-1 basis-40 items-center text-sm text-muted-foreground">Válassz úti célt és időszakot a látnivalók hozzáadásához.</p>}
     </div>
     {showFilters && <TripCategoryFilters token={token} selected={category} onSelect={setCategory} />}
+    {onLodgingPick && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand/10 px-3 py-2 text-sm">
+      <p role="status">Kattints a szállásra vagy a helyére a térképen.</p>
+      <button type="button" onClick={onCancelLodgingPick}
+        className="rounded-lg px-2 py-1 font-medium hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-brand">Mégse</button>
+    </div>}
     <div hidden={view !== "map"}>
-      <MapCanvas token={token} points={points} selectedId={selectedId} cameraCommand={camera}
-        onSelect={(id) => { const point = points.find((item) => item.id === id); if (point) onSelect(point); }}
-        onPlaceSelect={canPlan ? onSelect : undefined}
+      <MapCanvas token={token} points={points} lodging={lodging} selectedId={selectedId} cameraCommand={camera}
+        onSelect={(id) => { const point = points.find((item) => item.id === id); if (point) selectOnMap(point); }}
+        onPlaceSelect={onLodgingPick || canPlan ? selectOnMap : undefined}
+        onMapClick={onLodgingPick ? ([longitude, latitude]) => {
+          const lng = longitude >= -180 && longitude <= 180 ? longitude : ((longitude + 180) % 360 + 360) % 360 - 180;
+          onLodgingPick({
+            id: `lodging:${lng},${latitude}`, label: "Térképen megjelölt szállás", coordinates: [lng, latitude],
+          });
+        } : undefined}
         onViewportChange={updateBounds} discoveryPoints={discoveryPoints} selectedDiscoveryId={candidate?.point.id}
         hideBasemapPlaces={Boolean(categoryId)}
         missingTokenHint="Az úti cél és a látnivalók kereséséhez be kell állítani a térképszolgáltatást."

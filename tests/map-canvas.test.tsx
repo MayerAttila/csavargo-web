@@ -44,6 +44,19 @@ async function loaded() {
   return mock.instances.at(-1)!;
 }
 describe("V19/V21: reusable MapCanvas", () => {
+  it("renders lodging separately from numbered stops and removes the marker with the lodging", async () => {
+    const lodging = { id: "hotel", label: "Hotel", coordinates: [19.05, 47.5] } satisfies MapPoint;
+    const props = { token: "pk.test", points, onSelect: vi.fn() };
+    const { rerender } = render(<MapCanvas {...props} lodging={lodging} />);
+    await loaded();
+    const marker = screen.getByRole("img", { name: "Szállás: Hotel" });
+    expect(mock.markers.find(({ element }) => element === marker)?.coordinates).toEqual(lodging.coordinates);
+    expect(screen.getByRole("button", { name: "Hely kiválasztása: Országház" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Hely kiválasztása: Másik pont" })).toHaveTextContent("2");
+    rerender(<MapCanvas {...props} />);
+    expect(marker).not.toBeInTheDocument();
+  });
+
   it("reports the settled viewport and keeps discovery markers separate from numbered stops", async () => {
     const onViewportChange = vi.fn();
     const onPlaceSelect = vi.fn();

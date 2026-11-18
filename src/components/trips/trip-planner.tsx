@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
@@ -8,6 +8,7 @@ import { getTripPlan, saveTripPlan, type SavedTripPlan, type TripPlan } from "@/
 import { notify } from "@/lib/notifications";
 import { calendarDay, dateInputValue, type TripDateInputs, type TripDateRange } from "./trip-calendar";
 import { TripAgenda } from "./trip-agenda";
+import { TripLodging } from "./trip-lodging";
 import { TripPlaceWorkspace } from "./trip-place-workspace";
 import { TripSettings } from "./trip-settings";
 import { restorePoint, storedPoint } from "./trip-point";
@@ -23,6 +24,10 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
   const restored = initialSaved?.plan;
   const [name, setName] = useState(initialSaved?.name ?? "");
   const [destination, setDestination] = useState<MapPoint | undefined>(() => restored ? restorePoint(restored.destination) : undefined);
+  const [lodging, setLodging] = useState<MapPoint | undefined>(() => restored?.lodging ? restorePoint(restored.lodging) : undefined);
+  const [pickingLodging, setPickingLodging] = useState(false);
+  const [placeView, setPlaceView] = useState<"map" | "list">("map");
+  const placeWorkspace = useRef<HTMLDivElement>(null);
   const [range, setRange] = useState<TripDateRange | undefined>(() => restored
     ? { start: calendarDay(restored.start), end: calendarDay(restored.end) } : undefined);
   const [dateInputs, setDateInputs] = useState<TripDateInputs>(() => ({ start: restored?.start ?? "", end: restored?.end ?? "" }));
@@ -43,7 +48,9 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
   const existing = candidate ? places.find((place) => sameMapPlace(place, candidate)) : undefined;
   const canPlan = Boolean(destination && range);
   const plan: TripPlan | null = destination && range ? {
-    destination: storedPoint(destination), start: dateInputValue(range.start), end: dateInputValue(range.end),
+    destination: storedPoint(destination),
+    ...(lodging && { lodging: storedPoint(lodging) }),
+    start: dateInputValue(range.start), end: dateInputValue(range.end),
     days: Object.entries(days).sort(([a], [b]) => Number(a) - Number(b)).flatMap(([day, stops]) => stops?.length
       ? [{ date: dateInputValue(Number(day)), stops: stops.map(storedPoint) }] : []),
   } : null;
@@ -56,14 +63,16 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
     try {
       const baseline = saved ?? await getTripPlan(slug);
       if (!plan) {
-        if ((name || destination || dateInputs.start || dateInputs.end)
+        if ((name || destination || lodging || dateInputs.start || dateInputs.end)
           && !window.confirm("A mentett terv betöltése lecseréli az oldalon megadott adatokat. Betöltöd a mentett tervet?")) return;
-        const { destination: savedDestination, start, end } = baseline.plan;
+        const { destination: savedDestination, lodging: savedLodging, start, end } = baseline.plan;
         const startDay = calendarDay(start);
         const destinationPoint = restorePoint(savedDestination);
         const restoredDays = restoreDays(baseline.plan);
         setName(baseline.name);
         setDestination(destinationPoint);
+        setLodging(savedLodging ? restorePoint(savedLodging) : undefined);
+        setPickingLodging(false);
         setRange({ start: startDay, end: calendarDay(end) });
         setDateInputs({ start, end });
         setActiveDay(startDay);
@@ -107,6 +116,26 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
     const selected = places.find((place) => sameMapPlace(place, point)) ?? point;
     setCandidate(selected);
     setCamera({ type: "view", view: { center: selected.coordinates, zoom: 15 } });
+  }
+
+  function showLodgingOnMap(point: MapPoint) {
+    setPickingLodging(false);
+    setPlaceView("map");
+    setCamera({ type: "view", view: { center: point.coordinates, zoom: 15 } });
+    placeWorkspace.current?.scrollIntoView?.({ block: "nearest" });
+  }
+
+  function changeLodging(point?: MapPoint) {
+    setLodging(point);
+    setPickingLodging(false);
+  }
+
+  function toggleLodgingMapPick() {
+    setPickingLodging(!pickingLodging);
+    if (!pickingLodging) {
+      setPlaceView("map");
+      placeWorkspace.current?.scrollIntoView?.({ block: "nearest" });
+    }
   }
 
   function chooseDay(day: number) {
@@ -192,14 +221,21 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,0.6fr)_minmax(0,1fr)]">
       <div className="grid min-w-0 gap-4">
         <TripSettings token={token} name={name} onName={setName} destination={destination} dates={dateInputs}
-          onDestination={chooseDestination} onDates={setDateInputs} onApplyRange={applyDateRange} />
+          onDestination={chooseDestination} onDates={setDateInputs} onApplyRange={applyDateRange}>
+          <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={changeLodging}
+            onShowOnMap={showLodgingOnMap} onToggleMapPick={toggleLodgingMapPick} />
+        </TripSettings>
         <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay}
           onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} getPlaceInfo={getPlaceInfo} />
       </div>
 
-      <TripPlaceWorkspace token={token} activeDay={activeDay} canPlan={canPlan} points={places}
-        candidate={candidate ? getPlaceInfo(candidate) : undefined} selectedId={existing?.id} camera={camera}
-        onSelect={choosePlace} onAdd={addPlace} />
+      <div ref={placeWorkspace} className="min-w-0">
+        <TripPlaceWorkspace token={token} activeDay={activeDay} canPlan={canPlan} points={places} lodging={lodging}
+          candidate={candidate ? getPlaceInfo(candidate) : undefined} selectedId={existing?.id} camera={camera}
+          view={placeView} onViewChange={(view) => { setPlaceView(view); if (view === "list") setPickingLodging(false); }}
+          onLodgingPick={pickingLodging ? changeLodging : undefined} onCancelLodgingPick={() => setPickingLodging(false)}
+          onSelect={choosePlace} onAdd={addPlace} />
+      </div>
     </div>
   </div>;
 }

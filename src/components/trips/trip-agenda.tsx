@@ -36,12 +36,12 @@ export function TripAgenda({ range, activeDay, places, onDay, onSelect, onRemove
                 const day = calendarDay(event.target.value);
                 if (day >= range.start && day <= range.end) onDay(day);
               }} />
-          </label> : <div className="flex flex-wrap gap-1.5 p-0.5 sm:flex-col sm:flex-nowrap">
+          </label> : <div className="flex flex-wrap gap-1.5 p-0.5 sm:flex-col sm:flex-nowrap sm:gap-1">
             {Array.from({ length: dayCount }, (_, index) => {
               const day = range.start + index;
               const selected = day === activeDay;
               return <button type="button" key={day} aria-pressed={selected} onClick={() => onDay(day)}
-                className={`min-w-16 shrink-0 rounded-xl border px-1.5 py-1.5 text-center leading-tight focus-visible:outline-2 focus-visible:outline-brand sm:min-w-0 ${selected ? "border-brand/60 bg-action text-white shadow-sm" : "border-transparent bg-surface-alt/65 text-foreground hover:border-border"}`}>
+                className={`min-w-16 shrink-0 rounded-xl border px-1.5 py-1.5 text-center leading-tight focus-visible:outline-2 focus-visible:outline-brand sm:min-w-0 sm:py-0.5 ${selected ? "border-brand/60 bg-action text-white shadow-sm" : "border-transparent bg-surface-alt/65 text-foreground hover:border-border"}`}>
                 <span className="block text-xs font-semibold">{day - range.start + 1}. nap</span>
                 <span className={`mt-0.5 block text-[11px] ${selected ? "text-white/85" : "text-muted-foreground"}`}>{tripDateLabel(day, true)}</span>
               </button>;

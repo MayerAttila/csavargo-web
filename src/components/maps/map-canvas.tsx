@@ -5,11 +5,12 @@ import type { Map as MapboxMap, Marker, MapMouseEvent, ErrorEvent } from "mapbox
 import { HiOutlineMap } from "react-icons/hi2";
 import { notify } from "@/lib/notifications";
 import { isPublicMapToken, mapErrorMessage, WEBGL_ERROR } from "./map-errors";
-import { pointFromMapFeature } from "./map-poi";
+import { pointFromMapFeature, sameMapPlace } from "./map-poi";
 import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapBounds, type MapCameraCommand, type MapPoint, type MapView } from "./types";
 
 export type MapCanvasProps = {
   points: MapPoint[];
+  lodging?: MapPoint;
   selectedId?: string;
   onSelect: (id: string) => void;
   onMapClick?: (coordinates: Coordinates) => void;
@@ -27,7 +28,7 @@ export type MapCanvasProps = {
 };
 const styles = { standard: "mapbox://styles/mapbox/standard", satellite: "mapbox://styles/mapbox/satellite-streets-v12" };
 
-export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSelect, onViewportChange, discoveryPoints, selectedDiscoveryId, hideBasemapPlaces = false, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
+export function MapCanvas({ points, lodging, selectedId, onSelect, onMapClick, onPlaceSelect, onViewportChange, discoveryPoints, selectedDiscoveryId, hideBasemapPlaces = false, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
   className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", missingTokenHint }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
@@ -145,6 +146,33 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
       return { marker, dispose: () => button.removeEventListener("click", click) };
     });
   }, [points, selectedId, status, attempt]);
+
+  useEffect(() => {
+    const instance = map.current;
+    const mapbox = engine.current;
+    if (!instance || !mapbox || status !== "ready" || !lodging) return;
+    const element = document.createElement("div");
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", `Szállás: ${lodging.label}`);
+    element.className = "grid size-8 place-items-center rounded-full border-2 border-white bg-violet-700 text-white shadow-lg";
+    element.style.pointerEvents = "none";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "size-4");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 15h18M5 10V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3m-7-5v5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    element.append(svg);
+    const offset: [number, number] = points.some((point) => sameMapPlace(point, lodging)) ? [0, -18] : [0, 0];
+    const marker = new mapbox.Marker({ element, anchor: "bottom", offset }).setLngLat(lodging.coordinates).addTo(instance);
+    return () => { marker.remove(); };
+  }, [lodging, points, status, attempt]);
 
   useEffect(() => {
     const instance = map.current;
