@@ -20,15 +20,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/trip-plan": {
+    "/api/trips": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["getTripPlan"];
-        put: operations["saveTripPlan"];
+        get: operations["listTrips"];
+        put?: never;
+        post: operations["createTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trips/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTrip"];
+        put: operations["saveTrip"];
         post?: never;
         delete?: never;
         options?: never;
@@ -127,7 +143,7 @@ export interface operations {
             };
         };
     };
-    getTripPlan: {
+    listTrips: {
         parameters: {
             query?: never;
             header?: never;
@@ -143,32 +159,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        version: number;
-                        plan: {
-                            destination: {
-                                id: string;
-                                label: string;
-                                coordinates: (number)[];
-                                address?: string;
-                                locality?: string;
-                            };
-                            /** Format: date */
-                            start: string;
-                            /** Format: date */
-                            end: string;
-                            days: {
-                                /** Format: date */
-                                date: string;
-                                stops: {
-                                    id: string;
-                                    label: string;
-                                    coordinates: (number)[];
-                                    address?: string;
-                                    locality?: string;
-                                }[];
-                            }[];
-                        } | null;
-                    };
+                        slug: string;
+                        name: string;
+                        destination: string;
+                        /** Format: date */
+                        start: string;
+                        /** Format: date */
+                        end: string;
+                    }[];
                 };
             };
             /** @description Default Response */
@@ -198,7 +196,7 @@ export interface operations {
             };
         };
     };
-    saveTripPlan: {
+    createTrip: {
         parameters: {
             query?: never;
             header?: never;
@@ -208,6 +206,249 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** Format: uuid */
+                    id: string;
+                    name?: string;
+                    destination: {
+                        id: string;
+                        label: string;
+                        coordinates: (number)[];
+                        address?: string;
+                        locality?: string;
+                    };
+                    /** Format: date */
+                    start: string;
+                    /** Format: date */
+                    end: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Default Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        slug: string;
+                        name: string;
+                        version: number;
+                        plan: {
+                            destination: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
+                            /** Format: date */
+                            start: string;
+                            /** Format: date */
+                            end: string;
+                            days: {
+                                /** Format: date */
+                                date: string;
+                                stops: {
+                                    id: string;
+                                    label: string;
+                                    coordinates: (number)[];
+                                    address?: string;
+                                    locality?: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description Default Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        slug: string;
+                        name: string;
+                        version: number;
+                        plan: {
+                            destination: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
+                            /** Format: date */
+                            start: string;
+                            /** Format: date */
+                            end: string;
+                            days: {
+                                /** Format: date */
+                                date: string;
+                                stops: {
+                                    id: string;
+                                    label: string;
+                                    coordinates: (number)[];
+                                    address?: string;
+                                    locality?: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description Default Response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        code: "UNAUTHORIZED";
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    getTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Default Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        slug: string;
+                        name: string;
+                        version: number;
+                        plan: {
+                            destination: {
+                                id: string;
+                                label: string;
+                                coordinates: (number)[];
+                                address?: string;
+                                locality?: string;
+                            };
+                            /** Format: date */
+                            start: string;
+                            /** Format: date */
+                            end: string;
+                            days: {
+                                /** Format: date */
+                                date: string;
+                                stops: {
+                                    id: string;
+                                    label: string;
+                                    coordinates: (number)[];
+                                    address?: string;
+                                    locality?: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description Default Response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        code: "UNAUTHORIZED";
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+        };
+    };
+    saveTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
                     version: number;
                     plan: {
                         destination: {
@@ -244,6 +485,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        slug: string;
+                        name: string;
                         version: number;
                         plan: {
                             destination: {
@@ -268,7 +511,7 @@ export interface operations {
                                     locality?: string;
                                 }[];
                             }[];
-                        } | null;
+                        };
                     };
                 };
             };
@@ -287,6 +530,18 @@ export interface operations {
             };
             /** @description Default Response */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: string;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Default Response */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

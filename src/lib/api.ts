@@ -2,19 +2,34 @@ import type { paths } from "@/generated/api";
 
 export type Me = paths["/api/me"]["get"]["responses"][200]["content"]["application/json"];
 export const meKey = ["me"] as const;
-export type SavedTripPlan = paths["/api/trip-plan"]["get"]["responses"][200]["content"]["application/json"];
-export type TripPlan = NonNullable<SavedTripPlan["plan"]>;
+export type SavedTripPlan = paths["/api/trips/{slug}"]["get"]["responses"][200]["content"]["application/json"];
+export type TripPlan = SavedTripPlan["plan"];
+export type TripSummary = paths["/api/trips"]["get"]["responses"][200]["content"]["application/json"][number];
+export type CreateTrip = paths["/api/trips"]["post"]["requestBody"]["content"]["application/json"];
 
-export async function getTripPlan(): Promise<SavedTripPlan> {
-  const response = await fetch("/api/trip-plan", { credentials: "same-origin", cache: "no-store" });
+export function tripApiPath(slug: string) {
+  return `/api/trips/${encodeURIComponent(slug)}`;
+}
+
+export async function getTripPlan(slug: string): Promise<SavedTripPlan> {
+  const response = await fetch(tripApiPath(slug), { credentials: "same-origin", cache: "no-store" });
   if (!response.ok) throw new Error("TRIP_UNAVAILABLE");
   return response.json();
 }
 
-export async function saveTripPlan(plan: TripPlan, version: number): Promise<SavedTripPlan> {
-  const response = await fetch("/api/trip-plan", {
+export async function createTrip(trip: CreateTrip): Promise<SavedTripPlan> {
+  const response = await fetch("/api/trips", {
+    method: "POST", credentials: "same-origin", cache: "no-store",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(trip),
+  });
+  if (!response.ok) throw new Error("TRIP_UNAVAILABLE");
+  return response.json();
+}
+
+export async function saveTripPlan(slug: string, plan: TripPlan, version: number, name: string): Promise<SavedTripPlan> {
+  const response = await fetch(tripApiPath(slug), {
     method: "PUT", credentials: "same-origin", cache: "no-store",
-    headers: { "content-type": "application/json" }, body: JSON.stringify({ plan, version }),
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ plan, version, name }),
   });
   if (response.status === 409) throw new Error("TRIP_CONFLICT");
   if (!response.ok) throw new Error("TRIP_UNAVAILABLE");

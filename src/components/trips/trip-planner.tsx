@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
 import { getTripPlan, saveTripPlan, type SavedTripPlan, type TripPlan } from "@/lib/api";
@@ -9,35 +10,24 @@ import { calendarDay, dateInputValue, type TripDateInputs, type TripDateRange } 
 import { TripAgenda } from "./trip-agenda";
 import { TripPlaceWorkspace } from "./trip-place-workspace";
 import { TripSettings } from "./trip-settings";
+import { restorePoint, storedPoint } from "./trip-point";
 import { useTripPlaceInfo } from "./use-trip-place-info";
 
 const emptyDay: MapPoint[] = [];
-const unsaved: SavedTripPlan = { version: 0, plan: null };
-
-function storedPoint({ id, label, coordinates, address, locality }: MapPoint): TripPlan["destination"] {
-  return { id, label: label.trim(), coordinates, address, locality };
-}
-
-function restorePoint(point: TripPlan["destination"]): MapPoint {
-  const [longitude, latitude] = point.coordinates;
-  return { ...point, coordinates: [longitude, latitude], source: "map" };
-}
-
-function restoreDays(plan: TripPlan | null | undefined) {
+function restoreDays(plan?: TripPlan) {
   return Object.fromEntries((plan?.days ?? []).map(({ date, stops }) => [calendarDay(date), stops.map(restorePoint)]));
 }
 
-export function TripPlanner({ initialSaved = unsaved }: { initialSaved?: SavedTripPlan | null }) {
+export function TripPlanner({ slug, initialSaved = null }: { slug: string; initialSaved?: SavedTripPlan | null }) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const restored = initialSaved?.plan;
+  const [name, setName] = useState(initialSaved?.name ?? "");
   const [destination, setDestination] = useState<MapPoint | undefined>(() => restored ? restorePoint(restored.destination) : undefined);
   const [range, setRange] = useState<TripDateRange | undefined>(() => restored
     ? { start: calendarDay(restored.start), end: calendarDay(restored.end) } : undefined);
   const [dateInputs, setDateInputs] = useState<TripDateInputs>(() => ({ start: restored?.start ?? "", end: restored?.end ?? "" }));
   const [activeDay, setActiveDay] = useState<number | undefined>(() => restored ? calendarDay(restored.start) : undefined);
-  const [days, setDays] = useState<Partial<Record<number, MapPoint[]>>>(() => Object.fromEntries(
-    (restored?.days ?? []).map(({ date, stops }) => [calendarDay(date), stops.map(restorePoint)]),
-  ));
+  const [days, setDays] = useState<Partial<Record<number, MapPoint[]>>>(() => restoreDays(restored));
   const [candidate, setCandidate] = useState<MapPoint>();
   const getPlaceInfo = useTripPlaceInfo(candidate, token);
   const [camera, setCamera] = useState<MapCameraCommand | undefined>(() => {
@@ -57,41 +47,45 @@ export function TripPlanner({ initialSaved = unsaved }: { initialSaved?: SavedTr
     days: Object.entries(days).sort(([a], [b]) => Number(a) - Number(b)).flatMap(([day, stops]) => stops?.length
       ? [{ date: dateInputValue(Number(day)), stops: stops.map(storedPoint) }] : []),
   } : null;
-  const hasChanges = JSON.stringify(plan) !== JSON.stringify(saved?.plan ?? null);
+  const tripName = name.trim();
+  const hasChanges = tripName !== (saved?.name ?? "") || JSON.stringify(plan) !== JSON.stringify(saved?.plan ?? null);
 
   async function save() {
-    if (saving || (saved && (!plan || !hasChanges))) return;
+    if (saving || (saved && (!plan || !tripName || !hasChanges))) return;
     setSaving(true);
     try {
-      const baseline = saved ?? await getTripPlan();
+      const baseline = saved ?? await getTripPlan(slug);
       if (!plan) {
-        if (baseline.plan) {
-          const { destination: savedDestination, start, end } = baseline.plan;
-          if (!window.confirm("A mentett terv betöltése lecseréli az oldalon megadott adatokat. Betöltöd a mentett tervet?")) return;
-          const startDay = calendarDay(start);
-          const destinationPoint = restorePoint(savedDestination);
-          const restoredDays = restoreDays(baseline.plan);
-          setDestination(destinationPoint);
-          setRange({ start: startDay, end: calendarDay(end) });
-          setDateInputs({ start, end });
-          setActiveDay(startDay);
-          setDays(restoredDays);
-          setCandidate(undefined);
-          setCamera(restoredDays[startDay]?.length
-            ? { type: "fit", coordinates: restoredDays[startDay].map(({ coordinates }) => coordinates) }
-            : { type: "view", view: { center: destinationPoint.coordinates, zoom: 11 } });
-        }
+        if ((name || destination || dateInputs.start || dateInputs.end)
+          && !window.confirm("A mentett terv betöltése lecseréli az oldalon megadott adatokat. Betöltöd a mentett tervet?")) return;
+        const { destination: savedDestination, start, end } = baseline.plan;
+        const startDay = calendarDay(start);
+        const destinationPoint = restorePoint(savedDestination);
+        const restoredDays = restoreDays(baseline.plan);
+        setName(baseline.name);
+        setDestination(destinationPoint);
+        setRange({ start: startDay, end: calendarDay(end) });
+        setDateInputs({ start, end });
+        setActiveDay(startDay);
+        setDays(restoredDays);
+        setCandidate(undefined);
+        setCamera(restoredDays[startDay]?.length
+          ? { type: "fit", coordinates: restoredDays[startDay].map(({ coordinates }) => coordinates) }
+          : { type: "view", view: { center: destinationPoint.coordinates, zoom: 11 } });
         setSaved(baseline);
         return;
       }
-      if (!saved && baseline.plan) {
-        if (JSON.stringify(baseline.plan) === JSON.stringify(plan)) {
+      const nameToSave = tripName || baseline.name;
+      if (!saved) {
+        if (baseline.name === nameToSave && JSON.stringify(baseline.plan) === JSON.stringify(plan)) {
+          if (!tripName) setName(baseline.name);
           setSaved(baseline);
           return;
         }
-        if (!window.confirm("Már van egy mentett terved. Lecseréled az itt összeállított tervre?")) return;
+        if (!window.confirm("Lecseréled ennek az utazásnak a mentett tervét az itt összeállítottra?")) return;
       }
-      setSaved(await saveTripPlan(plan, baseline.version));
+      setSaved(await saveTripPlan(slug, plan, baseline.version, nameToSave));
+      if (!tripName) setName(nameToSave);
       notify.success("A tervet elmentettük a fiókodba.", { id: "trip-save" });
     } catch (error) {
       notify.error(error instanceof Error && error.message === "TRIP_CONFLICT"
@@ -178,14 +172,17 @@ export function TripPlanner({ initialSaved = unsaved }: { initialSaved?: SavedTr
 
   return <div className="mx-auto w-full max-w-[100rem] space-y-4 sm:space-y-5">
     <header className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Kirándulástervező</h1>
+      <div className="min-w-0">
+        <Link href="/utazasok" prefetch={false} className="text-xs font-medium text-muted-foreground hover:text-brand hover:underline">Vissza az utazásokhoz</Link>
+        <h1 className="mt-1 wrap-break-word text-2xl font-bold tracking-tight sm:text-3xl">{tripName || saved?.name || "Kirándulástervező"}</h1>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <p role="status" className="text-xs text-muted-foreground">
           {!saved ? "A mentett terv lekérése sikertelen volt. Újra megpróbálhatod ezen az oldalon."
             : hasChanges ? "Mentetlen módosítások"
-            : saved.plan ? "Mentve a fiókodba" : "Válassz úti célt és időszakot a mentéshez."}
+            : "Mentve a fiókodba"}
         </p>
-        <button type="button" disabled={saving || Boolean(saved && (!plan || !hasChanges))} onClick={() => void save()}
+        <button type="button" disabled={saving || Boolean(saved && (!plan || !tripName || !hasChanges))} onClick={() => void save()}
           className="min-h-10 rounded-xl bg-action px-3 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-45">
           {saving ? "Folyamatban…" : !saved && !plan ? "Újrapróbálás" : "Terv mentése"}
         </button>
@@ -194,7 +191,7 @@ export function TripPlanner({ initialSaved = unsaved }: { initialSaved?: SavedTr
 
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,0.6fr)_minmax(0,1fr)]">
       <div className="grid min-w-0 gap-4">
-        <TripSettings token={token} destination={destination} dates={dateInputs}
+        <TripSettings token={token} name={name} onName={setName} destination={destination} dates={dateInputs}
           onDestination={chooseDestination} onDates={setDateInputs} onApplyRange={applyDateRange} />
         <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay}
           onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} getPlaceInfo={getPlaceInfo} />

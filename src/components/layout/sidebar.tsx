@@ -51,8 +51,8 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
           <span className={slotClass}><HiOutlineSquares2X2 aria-hidden="true" className="size-4.5" /></span>
           <span className={textClass}>Áttekintés</span>
         </Link>
-        <Link href="/utazasok" aria-label="Utazások" aria-current={pathname === "/utazasok" ? "page" : undefined} title="Utazások" onClick={onNavigate}
-          className={`${rowClass} ${pathname === "/utazasok" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
+        <Link href="/utazasok" aria-label="Utazások" aria-current={pathname === "/utazasok" ? "page" : pathname?.startsWith("/utazasok/") ? "location" : undefined} title="Utazások" onClick={onNavigate}
+          className={`${rowClass} ${pathname === "/utazasok" || pathname?.startsWith("/utazasok/") ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineGlobeEuropeAfrica aria-hidden="true" className="size-4.5" /></span><span className={textClass}>Utazások</span>
         </Link>
         <Link href="/terkep" aria-label="Térkép" aria-current={pathname === "/terkep" ? "page" : undefined} title="Térkép" onClick={onNavigate}
