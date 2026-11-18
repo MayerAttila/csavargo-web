@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
-import { getTripPlan, saveTripPlan, type SavedTripPlan, type TripPlan } from "@/lib/api";
+import { getTripPlan, saveTripPlan, type SavedTripPlan, type TripPlan, type TripTravel } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { calendarDay, dateInputValue } from "./trip-calendar";
 import { TripAgenda } from "./trip-agenda";
@@ -30,6 +30,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   const destination = saved ? restorePoint(saved.plan.destination) : undefined;
   const range = saved ? { start: calendarDay(saved.plan.start), end: calendarDay(saved.plan.end) } : undefined;
   const [lodging, setLodging] = useState<MapPoint | undefined>(() => restored?.lodging ? restorePoint(restored.lodging) : undefined);
+  const [travel, setTravel] = useState<TripTravel>({ arrival: restored?.arrival, departure: restored?.departure });
   const [pickingLodging, setPickingLodging] = useState(false);
   const [placeView, setPlaceView] = useState<"map" | "list">("map");
   const placeWorkspace = useRef<HTMLDivElement>(null);
@@ -49,11 +50,14 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   const existing = candidate ? places.find((place) => sameMapPlace(place, candidate)) : undefined;
   const plan: TripPlan | null = saved ? {
     ...saved.plan,
+    ...travel,
     lodging: lodging ? storedPoint(lodging) : undefined,
     days: Object.entries(days).sort(([a], [b]) => Number(a) - Number(b)).flatMap(([day, stops]) => stops?.length
       ? [{ date: dateInputValue(Number(day)), stops: stops.map(storedPoint) }] : []),
   } : null;
   const hasChanges = JSON.stringify(plan?.lodging) !== JSON.stringify(saved?.plan.lodging)
+    || JSON.stringify(plan?.arrival) !== JSON.stringify(saved?.plan.arrival)
+    || JSON.stringify(plan?.departure) !== JSON.stringify(saved?.plan.departure)
     || JSON.stringify(plan?.days) !== JSON.stringify(saved?.plan.days);
 
   async function save() {
@@ -69,6 +73,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
         const startDay = calendarDay(start);
         const restoredDays = restoreDays(loaded.plan);
         setLodging(savedLodging ? restorePoint(savedLodging) : undefined);
+        setTravel({ arrival: loaded.plan.arrival, departure: loaded.plan.departure });
         setActiveDay(startDay);
         setDays(restoredDays);
         setCamera(restoredDays[startDay]?.length
@@ -182,7 +187,8 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
           <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={readOnly ? undefined : changeLodging}
             onToggleMapPick={toggleLodgingMapPick} />
         </section>
-        <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay}
+        <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay} travel={travel}
+          onTravelChange={readOnly ? undefined : (kind, value) => setTravel((current) => ({ ...current, [kind]: value }))}
           onSelect={choosePlace} onRemove={readOnly ? undefined : removePlace} onMove={readOnly ? undefined : movePlace} getPlaceInfo={getPlaceInfo} />
       </div>
 

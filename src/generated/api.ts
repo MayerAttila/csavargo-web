@@ -395,6 +395,16 @@ export interface operations {
                                 address?: string;
                                 locality?: string;
                             };
+                            arrival?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
+                            departure?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
                             /** Format: date */
                             start: string;
                             /** Format: date */
@@ -438,6 +448,16 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                            };
+                            arrival?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
+                            departure?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
                             };
                             /** Format: date */
                             start: string;
@@ -545,6 +565,16 @@ export interface operations {
                                 address?: string;
                                 locality?: string;
                             };
+                            arrival?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
+                            departure?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
                             /** Format: date */
                             start: string;
                             /** Format: date */
@@ -632,6 +662,16 @@ export interface operations {
                             address?: string;
                             locality?: string;
                         };
+                        arrival?: {
+                            /** @enum {string} */
+                            mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                            time?: string;
+                        };
+                        departure?: {
+                            /** @enum {string} */
+                            mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                            time?: string;
+                        };
                         /** Format: date */
                         start: string;
                         /** Format: date */
@@ -676,6 +716,16 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                            };
+                            arrival?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
+                            departure?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
                             };
                             /** Format: date */
                             start: string;
@@ -1514,6 +1564,16 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                            };
+                            arrival?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
+                            };
+                            departure?: {
+                                /** @enum {string} */
+                                mode?: "plane" | "train" | "bus" | "car" | "boat" | "other";
+                                time?: string;
                             };
                             /** Format: date */
                             start: string;

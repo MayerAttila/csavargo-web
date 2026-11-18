@@ -1,13 +1,17 @@
 import { HiOutlineCalendarDays } from "react-icons/hi2";
 import type { MapPoint } from "@/components/maps/types";
+import type { TripTravel, TripTravelLeg } from "@/lib/api";
 import { TripDayPlaces } from "./trip-day-places";
 import { calendarDay, dateInputValue, tripDateLabel, type TripDateRange } from "./trip-calendar";
 import type { GetTripPlaceInfo } from "./use-trip-place-info";
+import { TripTravelLegFields } from "./trip-travel-leg";
 
 type Props = {
   range?: TripDateRange;
   activeDay?: number;
   places: MapPoint[];
+  travel: TripTravel;
+  onTravelChange?: (kind: keyof TripTravel, value?: TripTravelLeg) => void;
   onDay: (day: number) => void;
   onSelect: (place: MapPoint) => void;
   onRemove?: (place: MapPoint) => void;
@@ -15,7 +19,7 @@ type Props = {
   getPlaceInfo: GetTripPlaceInfo;
 };
 
-export function TripAgenda({ range, activeDay, places, onDay, onSelect, onRemove, onMove, getPlaceInfo }: Props) {
+export function TripAgenda({ range, activeDay, places, travel, onTravelChange, onDay, onSelect, onRemove, onMove, getPlaceInfo }: Props) {
   const dayCount = range ? range.end - range.start + 1 : 0;
   const dayNumber = range && activeDay !== undefined ? activeDay - range.start + 1 : 0;
   const useCalendar = dayCount > 31;
@@ -48,10 +52,14 @@ export function TripAgenda({ range, activeDay, places, onDay, onSelect, onRemove
             })}
           </div>}
         </div>
-        <div className="min-w-0 rounded-xl border border-border/70 bg-surface-alt/35 p-2.5 sm:p-3">
+        <div className="min-w-0 space-y-2.5 rounded-xl border border-border/70 bg-surface-alt/35 p-2.5 sm:p-3">
+          {activeDay === range.start && <TripTravelLegFields kind="arrival" value={travel.arrival}
+            onChange={onTravelChange && ((value) => onTravelChange("arrival", value))} />}
           {places.length ? <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places}
             onSelect={onSelect} onRemove={onRemove} onMove={onMove} getPlaceInfo={getPlaceInfo} />
             : <p className="text-sm text-muted-foreground">{onMove ? "Válassz egy helyet a térképen vagy a keresőből, majd add hozzá ehhez a naphoz." : "Ehhez a naphoz még nincs mentett program."}</p>}
+          {activeDay === range.end && <TripTravelLegFields kind="departure" value={travel.departure}
+            onChange={onTravelChange && ((value) => onTravelChange("departure", value))} />}
         </div>
       </div>
     ) : <p className="rounded-xl bg-surface-alt/40 p-3 text-sm text-muted-foreground">Állítsd be az utazás időszakát a napi programhoz.</p>}
