@@ -7,7 +7,7 @@ import { PlaceInfoPanel } from "@/components/maps/place-info";
 import { PlaceSearch } from "@/components/maps/place-search";
 import type { PlaceCategory } from "@/components/maps/search-api";
 import type { MapBounds, MapCameraCommand, MapPoint } from "@/components/maps/types";
-import { TripCategoryFilters } from "./trip-category-filters";
+import { lodgingCategory, TripCategoryFilters } from "./trip-category-filters";
 import { TripPlaceSummary } from "./trip-place-summary";
 import { useTripCategoryPlaces } from "./use-trip-category-places";
 import type { TripPlaceInfo } from "./use-trip-place-info";
@@ -15,7 +15,6 @@ import type { TripPlaceInfo } from "./use-trip-place-info";
 type Props = {
   token: string;
   activeDay?: number;
-  canPlan: boolean;
   points: MapPoint[];
   lodging?: MapPoint;
   candidate?: TripPlaceInfo;
@@ -33,17 +32,20 @@ const views = [
   { id: "map", label: "Térkép", Icon: HiOutlineMap },
   { id: "list", label: "Lista nézet", Icon: HiOutlineListBullet },
 ] as const;
+const emptyPoints: MapPoint[] = [];
 
-export function TripPlaceWorkspace({ token, activeDay, canPlan, points, lodging, candidate, selectedId, camera, view, onViewChange,
+export function TripPlaceWorkspace({ token, activeDay, points, lodging, candidate, selectedId, camera, view, onViewChange,
   onLodgingPick, onCancelLodgingPick, onSelect, onAdd }: Props) {
   const [category, setCategory] = useState<PlaceCategory | null>(null);
   const [bounds, setBounds] = useState<MapBounds>();
-  const showFilters = view === "map" && canPlan && isPublicMapToken(token);
-  const categoryId = showFilters ? category?.id : undefined;
+  const showFilters = view === "map" && isPublicMapToken(token);
+  const mapCategory = onLodgingPick ? lodgingCategory : category;
+  const categoryId = showFilters ? mapCategory?.id : undefined;
+  const mapPoints = onLodgingPick ? emptyPoints : points;
   const { current: results, retry } = useTripCategoryPlaces(categoryId, bounds, token);
   const resultCount = results?.points?.length;
   const discoveryPoints = useMemo(() => results?.points?.filter((result) =>
-    !points.some((point) => sameMapPlace(result, point))), [results, points]);
+    !mapPoints.some((point) => sameMapPlace(result, point))), [results, mapPoints]);
   const updateBounds = useCallback((next: MapBounds | undefined) => {
     setBounds((current) => next && current?.every((value, index) => value === next[index]) ? current : next);
   }, []);
@@ -57,20 +59,22 @@ export function TripPlaceWorkspace({ token, activeDay, canPlan, points, lodging,
           <Icon aria-hidden="true" className="size-4" />{label}
         </button>)}
       </div>
-      {canPlan ? <div className="min-w-0 flex-[1_1_15rem]">
+      <div className="min-w-0 flex-[1_1_15rem]">
         <PlaceSearch key={activeDay} token={token} onSelect={onSelect} label="Látnivaló keresése" />
-      </div> : <p className="flex min-h-10 flex-1 basis-40 items-center text-sm text-muted-foreground">Válassz úti célt és időszakot a látnivalók hozzáadásához.</p>}
+      </div>
     </div>
-    {showFilters && <TripCategoryFilters token={token} selected={category} onSelect={setCategory} />}
+    {showFilters && <fieldset disabled={Boolean(onLodgingPick)} className="min-w-0">
+      <TripCategoryFilters token={token} selected={mapCategory} onSelect={setCategory} />
+    </fieldset>}
     {onLodgingPick && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand/10 px-3 py-2 text-sm">
       <p role="status">Kattints a szállásra vagy a helyére a térképen.</p>
       <button type="button" onClick={onCancelLodgingPick}
         className="rounded-lg px-2 py-1 font-medium hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-brand">Mégse</button>
     </div>}
     <div hidden={view !== "map"}>
-      <MapCanvas token={token} points={points} lodging={lodging} selectedId={selectedId} cameraCommand={camera}
+      <MapCanvas token={token} points={mapPoints} lodging={lodging} selectedId={selectedId} cameraCommand={camera}
         onSelect={(id) => { const point = points.find((item) => item.id === id); if (point) selectOnMap(point); }}
-        onPlaceSelect={onLodgingPick || canPlan ? selectOnMap : undefined}
+        onPlaceSelect={selectOnMap}
         onMapClick={onLodgingPick ? ([longitude, latitude]) => {
           const lng = longitude >= -180 && longitude <= 180 ? longitude : ((longitude + 180) % 360 + 360) % 360 - 180;
           onLodgingPick({

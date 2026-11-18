@@ -4,6 +4,8 @@ import { PiCoffee, PiForkKnife, PiTree } from "react-icons/pi";
 import { mapErrorMessage } from "@/components/maps/map-errors";
 import { listPlaceCategories, type PlaceCategory } from "@/components/maps/search-api";
 
+export const lodgingCategory = { id: "lodging", label: "Szállások" };
+
 const quickFilters = [
   { id: "", label: "Összes", Icon: HiOutlineSquares2X2 },
   { id: "tourist_attraction", label: "Látnivalók", Icon: HiOutlineMapPin },
@@ -11,7 +13,7 @@ const quickFilters = [
   { id: "restaurant", label: "Éttermek", Icon: PiForkKnife },
   { id: "coffee_shop", label: "Kávézók", Icon: PiCoffee },
   { id: "park", label: "Parkok", Icon: PiTree },
-  { id: "lodging", label: "Szállások", Icon: HiOutlineBuildingOffice2 },
+  { ...lodgingCategory, Icon: HiOutlineBuildingOffice2 },
 ];
 
 function filterClass(selected: boolean) {

@@ -40,6 +40,11 @@ function TripCard({ trip, status, inProgress }: { trip: TripSummary; status: Tri
         <Icon aria-hidden="true" className="size-4" />
         {inProgress ? "Folyamatban" : label}
       </span>
+      <Link href={`/utazasok/${encodeURIComponent(slug)}/szerkesztes`} prefetch={false}
+        aria-label={`Utazás szerkesztése: ${name}`} title="Utazás szerkesztése"
+        className="absolute top-3 right-3 z-10 grid size-9 place-items-center rounded-full bg-black/70 text-white hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+        <HiOutlinePencil aria-hidden="true" className="size-4" />
+      </Link>
     </TripCardCover>
     <Link
       href={`/utazasok/${encodeURIComponent(slug)}`}

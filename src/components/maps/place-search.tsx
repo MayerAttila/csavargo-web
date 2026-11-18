@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { Input, type InputProps } from "@/components/ui/input";
 import { notify } from "@/lib/notifications";
 import { isPublicMapToken, mapErrorMessage } from "./map-errors";
 import { retrievePlace, suggestPlaces, type PlaceSuggestion } from "./search-api";
@@ -15,9 +15,12 @@ type PlaceSearchProps = {
   label?: string;
   autoFocus?: boolean;
   compact?: boolean;
+  inputVariant?: InputProps["variant"];
+  selectedValue?: string;
+  onClearSelection?: () => void;
 };
 
-export function PlaceSearch({ token, onSelect, label, autoFocus, compact }: PlaceSearchProps) {
+export function PlaceSearch({ token, onSelect, label, autoFocus, compact, inputVariant, selectedValue, onClearSelection }: PlaceSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,22 @@ export function PlaceSearch({ token, onSelect, label, autoFocus, compact }: Plac
   const items = open && results?.query === query.trim() ? results.items : [];
 
   function cancel() { version.current++; pending.current?.abort(); }
-  function change(value: string) { cancel(); setQuery(value); setResults(null); setActive(-1); setOpen(true); setBusy(false); }
+  function change(value: string) {
+    cancel();
+    setQuery(value);
+    setResults(null);
+    setActive(-1);
+    setOpen(true);
+    setBusy(false);
+    if (!value && selectedValue) onClearSelection?.();
+  }
+
+  function close() {
+    cancel();
+    setOpen(false);
+    setBusy(false);
+    if (onClearSelection) setQuery("");
+  }
 
   useEffect(() => {
     if (!enabled || !open || query.trim().length < 3) return;
@@ -86,13 +104,13 @@ export function PlaceSearch({ token, onSelect, label, autoFocus, compact }: Plac
   }
 
   return <div className="relative" onBlur={(event) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) { cancel(); setOpen(false); setBusy(false); }
+    if (!event.currentTarget.contains(event.relatedTarget)) close();
   }}>
-    <Input autoFocus={autoFocus} type="search" label={label} value={query} maxLength={256} disabled={!enabled} role="combobox" aria-autocomplete="list"
+    <Input autoFocus={autoFocus} type="search" variant={inputVariant} label={label} value={query || selectedValue || ""} maxLength={256} disabled={!enabled && !selectedValue} role="combobox" aria-autocomplete="list"
       aria-expanded={items.length > 0} aria-controls={listId} aria-activedescendant={items[active] ? `${listId}-${active}` : undefined}
       aria-describedby={`${listId}-hint`} onChange={(event) => change(event.target.value)}
       onFocus={() => setOpen(true)} onKeyDown={(event) => {
-        if (event.key === "Escape") { event.preventDefault(); cancel(); setOpen(false); setBusy(false); }
+        if (event.key === "Escape") { event.preventDefault(); close(); }
         if (event.key === "ArrowDown" && items.length) { event.preventDefault(); setActive((index) => (index + 1) % items.length); }
         if (event.key === "ArrowUp" && items.length) { event.preventDefault(); setActive((index) => (index <= 0 ? items.length - 1 : index - 1)); }
         if (event.key === "Enter") { event.preventDefault(); if (items[active] && !busy) void select(items[active]); }

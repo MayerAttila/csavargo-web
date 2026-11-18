@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { TripForm } from "@/components/trips/trip-form";
 import { TripPlanner } from "@/components/trips/trip-planner";
 import type { MapCanvasProps } from "@/components/maps/map-canvas";
 import type { MapPoint } from "@/components/maps/types";
-import { getTripPlan, saveTripPlan } from "@/lib/api";
+import { getTripPlan, saveTripPlan, type SavedTripPlan } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { findSamplePlace, listPlaceCategories, searchPlaceCategory } from "@/components/maps/search-api";
 
@@ -14,8 +15,9 @@ const square: MapPoint = { id: "mapbox:square", label: "Széchenyi tér", coordi
 const gallery: MapPoint = { id: "mapbox:gallery", label: "Zsolnay Negyed", coordinates: [18.247, 46.077], source: "map" };
 
 vi.mock("@/components/maps/place-search", () => ({
-  PlaceSearch: ({ label, onSelect }: { label: string; onSelect: (point: MapPoint) => void }) => (
+  PlaceSearch: ({ label, onSelect, selectedValue }: { label: string; onSelect: (point: MapPoint) => void; selectedValue?: string }) => (
     <div aria-label={label} role="group">
+      {label === "Szállás keresése" && <input aria-label={label} value={selectedValue ?? ""} readOnly />}
       {(label.startsWith("Úti cél") ? [pecs, budapest] : label === "Szállás keresése" ? [] : [square]).map((point) =>
         <button type="button" key={point.id} onClick={() => onSelect(point)}>{point.label}</button>)}
     </div>
@@ -36,7 +38,9 @@ vi.mock("@/components/maps/map-canvas", () => ({
   ),
 }));
 
-vi.mock("@/lib/api", () => ({ getTripPlan: vi.fn(), saveTripPlan: vi.fn() }));
+const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("@/lib/api", () => ({ createTrip: vi.fn(), getTripPlan: vi.fn(), saveTripPlan: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({ notify: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/components/maps/search-api", () => ({ findSamplePlace: vi.fn(), searchPlaceCategory: vi.fn(), listPlaceCategories: vi.fn() }));
 
@@ -47,15 +51,15 @@ const dayButton = (day: number) => within(screen.getByRole("group", { name: "Nap
   .getByRole("button", { name: new RegExp(`^${day}\\. nap`) });
 const dayList = (day: number) => screen.getByRole("list", { name: `${day}. nap helyszínei` });
 
-async function setDates(user: ReturnType<typeof userEvent.setup>, start: string, end: string) {
-  fireEvent.change(screen.getByLabelText("Kezdő dátum"), { target: { value: start } });
-  fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: end } });
-  await user.click(button("Mentés"));
+const date = "2026-11-18";
+function savedTrip(start = date, end = start): SavedTripPlan {
+  return { slug: "pecs-2026-11", name: "Pécs", version: 1, plan: { destination: pecs, start, end, days: [] } };
 }
 
 describe("V25: kirándulástervező", () => {
   it("V31: chooses a mapped place or coordinate as lodging without adding a daily stop", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    vi.mocked(searchPlaceCategory).mockImplementation(async (category) => category === "lodging" ? [gallery] : []);
     const user = userEvent.setup();
     const date = "2026-11-18";
     render(<TripPlanner slug="pecs-2026-11" initialSaved={{
@@ -63,21 +67,31 @@ describe("V25: kirándulástervező", () => {
       plan: { destination: pecs, start: date, end: date, days: [] },
     }} />);
     const pick = button("Szállás kiválasztása a térképen");
+    await user.click(button("Múzeumok"));
+    await user.click(button("Térképterület megadása"));
     await user.click(pick);
-    await user.click(button("Zsolnay jelölő"));
-    expect(screen.getByRole("textbox", { name: "Szállás" })).toHaveValue(gallery.label);
+    expect(button("Szállások")).toHaveAttribute("aria-pressed", "true");
+    expect(button("Múzeumok")).toBeDisabled();
+    await user.click(await screen.findByRole("button", { name: "Találat: Zsolnay Negyed" }));
+    expect(searchPlaceCategory).toHaveBeenCalledWith("lodging", [18, 46, 19, 47], "pk.test", expect.any(AbortSignal));
+    expect(screen.getByRole("textbox", { name: "Szállás keresése" })).toHaveValue(gallery.label);
     expect(pick).toHaveAttribute("aria-pressed", "false");
+    expect(button("Múzeumok")).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("region", { name: "Kiválasztott hely" })).not.toBeInTheDocument();
     await user.click(pick);
+    await user.click(button("Mégse"));
+    expect(button("Múzeumok")).toHaveAttribute("aria-pressed", "true");
+    await user.click(pick);
     await user.click(button("Üres térképpont"));
-    expect(screen.getByRole("textbox", { name: "Szállás" })).toHaveValue("Térképen megjelölt szállás");
-    await user.click(button("Szállás a térképen: Térképen megjelölt szállás"));
+    expect(screen.getByRole("textbox", { name: "Szállás keresése" })).toHaveValue("Térképen megjelölt szállás");
+    await user.click(pick);
     expect(screen.getByLabelText("Térképnézet")).toHaveTextContent(JSON.stringify({
       type: "view", view: { center: [20, 46.075], zoom: 15 },
     }));
   });
 
   it("V31: opens the map centered on the saved lodging independently of daily stops", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     const user = userEvent.setup();
     const date = "2026-11-18";
     const lodging = { id: "hotel", label: "Pécsi Hotel", coordinates: [18.225, 46.074] } satisfies MapPoint;
@@ -86,7 +100,7 @@ describe("V25: kirándulástervező", () => {
       plan: { destination: pecs, lodging, start: date, end: date, days: [] },
     }} />);
     await user.click(button("Lista nézet"));
-    await user.click(button("Szállás a térképen: Pécsi Hotel"));
+    await user.click(button("Szállás kiválasztása a térképen"));
     expect(button("Térkép")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Térképnézet")).toHaveTextContent(
       JSON.stringify({ type: "view", view: { center: lodging.coordinates, zoom: 15 } }),
@@ -94,45 +108,33 @@ describe("V25: kirándulástervező", () => {
     expect(button("Terv mentése")).toBeDisabled();
   });
 
-  it("retries an unavailable saved plan and saves the existing draft without reloading", async () => {
-    const date = "2026-11-18";
-    const plan = {
-      destination: pecs, start: date, end: date,
-      days: [{ date, stops: [{ id: square.id, label: square.label, coordinates: square.coordinates }] }],
-    };
-    vi.mocked(getTripPlan).mockRejectedValueOnce(new Error("TRIP_UNAVAILABLE")).mockResolvedValueOnce({ slug: "pecs-2026-11", name: "Pécs", version: 1, plan: { ...plan, days: [] } });
-    vi.mocked(saveTripPlan).mockResolvedValueOnce({ slug: "pecs-2026-11", name: "Pécs", version: 2, plan });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("retries an unavailable plan and restores the saved itinerary", async () => {
+    const trip = savedTrip();
+    trip.plan.days = [{ date, stops: [{ id: square.id, label: square.label, coordinates: square.coordinates }] }];
+    vi.mocked(getTripPlan).mockRejectedValueOnce(new Error("TRIP_UNAVAILABLE")).mockResolvedValueOnce(trip);
     const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" initialSaved={null} />);
-    await user.click(button("Pécs"));
-    await setDates(user, date, date);
+    render(<TripPlanner slug={trip.slug} />);
+    await user.click(button("Újrapróbálás"));
+    await waitFor(() => expect(notify.error).toHaveBeenCalled());
+    expect(screen.queryByRole("group", { name: "Napválasztó" })).not.toBeInTheDocument();
+    await user.click(button("Újrapróbálás"));
+    expect(await screen.findByRole("heading", { name: "Pécs" })).toBeVisible();
+    expect(dayList(1)).toHaveTextContent("Széchenyi tér");
+    expect(button("Terv mentése")).toBeDisabled();
+    expect(saveTripPlan).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsaved daily stops after a version conflict", async () => {
+    const trip = savedTrip();
+    vi.mocked(saveTripPlan).mockRejectedValueOnce(new Error("TRIP_CONFLICT"));
+    const user = userEvent.setup();
+    render(<TripPlanner slug={trip.slug} initialSaved={trip} />);
     await user.click(button("Széchenyi tér"));
     await user.click(button("Hozzáadás ehhez a naphoz"));
     await user.click(button("Terv mentése"));
-    await waitFor(() => expect(notify.error).toHaveBeenCalled());
+    await waitFor(() => expect(notify.error).toHaveBeenCalledWith(expect.stringContaining("máshol módosították"), expect.anything()));
     expect(dayList(1)).toHaveTextContent("Széchenyi tér");
-
-    await user.click(button("Terv mentése"));
-    await waitFor(() => expect(saveTripPlan).toHaveBeenCalledWith("pecs-2026-11", plan, 1, "Pécs"));
-    expect(screen.getByText("Mentve a fiókodba")).toBeVisible();
-    expect(dayList(1)).toHaveTextContent("Széchenyi tér");
-  });
-
-  it("asks before replacing a saved plan discovered during the retry", async () => {
-    const date = "2026-11-18";
-    vi.mocked(getTripPlan).mockResolvedValueOnce({
-      slug: "pecs-2026-11", name: "Budapest", version: 2, plan: { destination: budapest, start: date, end: date, days: [] },
-    });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" initialSaved={null} />);
-    await user.click(button("Pécs"));
-    await setDates(user, date, date);
-    await user.click(button("Terv mentése"));
-    expect(confirm).toHaveBeenCalledOnce();
-    expect(saveTripPlan).not.toHaveBeenCalled();
-    expect(button("Úti cél cseréje")).toHaveTextContent("Pécs");
+    expect(button("Terv mentése")).toBeEnabled();
   });
 
   it("searches the visible map when a category is selected, cancels stale results, and keeps the itinerary", async () => {
@@ -142,9 +144,7 @@ describe("V25: kirándulástervező", () => {
       .mockResolvedValue([square, gallery]);
     vi.mocked(listPlaceCategories).mockResolvedValue([{ id: "parking_lot", label: "Parkoló" }]);
     const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    await user.click(button("Pécs"));
-    await setDates(user, "2026-11-18", "2026-11-18");
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={savedTrip()} />);
     await user.click(button("Térképterület megadása"));
     await user.click(button("Széchenyi tér"));
     await user.click(button("Hozzáadás ehhez a naphoz"));
@@ -168,11 +168,8 @@ describe("V25: kirándulástervező", () => {
   });
   it("adds search and map picks explicitly, prevents same-day duplicates, and keeps each day ordered independently", async () => {
     const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    expect(button("Zsolnay jelölő")).toBeDisabled();
-    await user.click(button("Pécs"));
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={savedTrip(date, "2026-11-19")} />);
     expect(screen.getByLabelText("Térképnézet")).toHaveTextContent("[18.23,46.07]");
-    await setDates(user, "2026-11-18", "2026-11-19");
     expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("1. nap / 2");
 
     await user.click(button("Széchenyi tér"));
@@ -203,48 +200,9 @@ describe("V25: kirándulástervező", () => {
     expect(dayList(2)).toHaveTextContent("Széchenyi tér");
   });
 
-  it("preserves the draft across destination changes and only discards populated days after confirmation", async () => {
-    const user = userEvent.setup();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
-    const { unmount } = render(<TripPlanner slug="pecs-2026-11" />);
-    await user.click(button("Pécs"));
-    await setDates(user, "2026-11-18", "2026-11-20");
-    await setDates(user, "2026-11-18", "2026-11-19");
-    expect(confirm).not.toHaveBeenCalled();
-    await user.click(dayButton(2));
-    await user.click(button("Zsolnay jelölő"));
-    await user.click(button("Hozzáadás ehhez a naphoz"));
-
-    await user.click(button("Úti cél cseréje"));
-    await user.click(button("Budapest"));
-    expect(dayList(2)).toHaveTextContent("Zsolnay Negyed");
-    expect(screen.getByLabelText("Térképnézet")).toHaveTextContent("[19.04,47.49]");
-    await setDates(user, "2026-11-19", "2026-11-18");
-    expect(notify.error).toHaveBeenCalled();
-    await setDates(user, "2026-11-19", "2026-11-20");
-    expect(dayList(1)).toHaveTextContent("Zsolnay Negyed");
-    expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("2026. november 19.");
-    await setDates(user, "2026-11-20", "2026-11-20");
-    expect(dayList(1)).toHaveTextContent("Zsolnay Negyed");
-    expect(screen.getByLabelText("Kezdő dátum")).toHaveValue("2026-11-19");
-    await setDates(user, "2026-11-20", "2026-11-20");
-    expect(dayButton(1)).toHaveAttribute("aria-pressed", "true");
-    expect(within(screen.getByRole("group", { name: "Napválasztó" })).getAllByRole("button")).toHaveLength(1);
-    await setDates(user, "2026-11-19", "2026-11-20");
-    await user.click(dayButton(1));
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
-
-    unmount();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    expect(screen.getByLabelText("Kezdő dátum")).toHaveValue("");
-    expect(screen.getByRole("group", { name: "Úti cél keresése" })).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Napválasztó" })).not.toBeInTheDocument();
-  });
-
   it("counts calendar days inclusively across a daylight-saving transition", async () => {
     const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    await setDates(user, "2026-03-28", "2026-03-30");
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={savedTrip("2026-03-28", "2026-03-30")} />);
     expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("1. nap / 3");
     await user.click(dayButton(3));
     expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("2026. március 30.");
@@ -252,9 +210,7 @@ describe("V25: kirándulástervező", () => {
   });
 
   it("lets every day in a longer trip be selected directly by date", async () => {
-    const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    await setDates(user, "2026-11-18", "2027-01-10");
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={savedTrip(date, "2027-01-10")} />);
     const picker = screen.getByLabelText("Nap kiválasztása");
     expect(picker).toHaveAttribute("max", "2027-01-10");
     fireEvent.change(picker, { target: { value: "2027-01-10" } });
@@ -266,9 +222,7 @@ describe("V25: kirándulástervező", () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     vi.mocked(findSamplePlace).mockResolvedValue({ ...gallery, address: "Pécs, Zsolnay Vilmos utca", info: { rating: 4.8 } });
     const user = userEvent.setup();
-    render(<TripPlanner slug="pecs-2026-11" />);
-    await user.click(button("Pécs"));
-    await setDates(user, "2026-11-18", "2026-11-18");
+    render(<TripPlanner slug="pecs-2026-11" initialSaved={savedTrip()} />);
     await user.click(button("Széchenyi tér"));
     await user.click(button("Hozzáadás ehhez a naphoz"));
     await user.click(button("Zsolnay jelölő"));
@@ -307,5 +261,31 @@ describe("V25: kirándulástervező", () => {
     expect(findSamplePlace).toHaveBeenCalledTimes(1);
     await user.click(within(list).getByRole("button", { name: "Széchenyi tér", exact: true }));
     expect(within(list).getByRole("button", { name: "Széchenyi tér", exact: true })).toHaveAccessibleDescription(/4,5/);
+  });
+});
+
+describe("Utazás szerkesztése", () => {
+  it("retains lodging and in-range stops, and confirms removing out-of-range days", async () => {
+    const user = userEvent.setup();
+    const trip = savedTrip(date, "2026-11-20");
+    trip.plan.lodging = { id: "hotel", label: "Hotel", coordinates: [18.225, 46.074] };
+    trip.plan.days = [{ date, stops: [gallery] }, { date: "2026-11-20", stops: [square] }];
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.mocked(saveTripPlan).mockResolvedValue(trip);
+    render(<TripForm trip={trip} />);
+    await user.click(button("Úti cél cseréje"));
+    await user.click(button("Budapest"));
+    fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: "2026-11-17" } });
+    await user.click(button("Módosítások mentése"));
+    expect(notify.error).toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: "2026-11-19" } });
+    await user.click(button("Módosítások mentése"));
+    expect(saveTripPlan).not.toHaveBeenCalled();
+    await user.click(button("Módosítások mentése"));
+    expect(saveTripPlan).toHaveBeenCalledWith(trip.slug, {
+      ...trip.plan, destination: budapest, end: "2026-11-19", days: [trip.plan.days[0]],
+    }, trip.version, trip.name);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/utazasok"));
   });
 });
