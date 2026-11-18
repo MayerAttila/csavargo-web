@@ -15,6 +15,7 @@ class FakeMap {
   emit(name: string, event?: unknown) { this.events.get(name)?.forEach((handler) => handler(event)); }
   getCanvas() { return this.canvas; }
   getBounds = vi.fn(() => ({ getWest: () => 18, getSouth: () => 46, getEast: () => 20, getNorth: () => 48 }));
+  project = ([x, y]: MapPoint["coordinates"]) => ({ x, y });
   queryRenderedFeatures = vi.fn().mockReturnValue([]);
   getStyle = () => ({ layers: [{ id: "poi-label", type: "symbol", "source-layer": "poi_label" }, { id: "road-label", type: "symbol", "source-layer": "road" }] });
 }
@@ -44,6 +45,32 @@ async function loaded() {
   return mock.instances.at(-1)!;
 }
 describe("V19/V21: reusable MapCanvas", () => {
+  it("names lodging results, avoids label collisions and keeps their bed icons selectable", async () => {
+    const hotel = { id: "hotel", label: "Hotel", coordinates: [60, 45] } satisfies MapPoint;
+    const guesthouse = { id: "guesthouse", label: "Vendégház", coordinates: [95, 45] } satisfies MapPoint;
+    const onPlaceSelect = vi.fn();
+    const { unmount } = render(<MapCanvas token="pk.test" points={points} onSelect={vi.fn()}
+      discoveryPoints={[hotel, guesthouse]} showLodgingLabels selectedDiscoveryId={hotel.id} onPlaceSelect={onPlaceSelect} />);
+    const map = await loaded();
+    const hotelMarker = screen.getByRole("button", { name: "Találat kiválasztása: Hotel" });
+    const guesthouseMarker = screen.getByRole("button", { name: "Találat kiválasztása: Vendégház" });
+    const hotelLabel = screen.getByText("Hotel");
+    const guesthouseLabel = screen.getByText("Vendégház");
+    Object.defineProperties(map.options.container, { clientWidth: { value: 320 }, clientHeight: { value: 200 } });
+    for (const label of [hotelLabel, guesthouseLabel]) {
+      Object.defineProperties(label, { offsetWidth: { value: 72 }, offsetHeight: { value: 16 } });
+    }
+    act(() => map.emit("moveend"));
+    expect(hotelLabel).toHaveClass("invisible");
+    expect(guesthouseLabel).not.toHaveClass("invisible");
+    expect(hotelMarker.querySelector("svg")).toBeInTheDocument();
+    expect(hotelMarker).not.toHaveClass("bg-action");
+    fireEvent.click(guesthouseMarker);
+    expect(onPlaceSelect).toHaveBeenCalledWith(guesthouse);
+    unmount();
+    expect(map.events.get("resize")?.size).toBe(0);
+  });
+
   it("renders lodging separately from numbered stops and removes the marker with the lodging", async () => {
     const lodging = { id: "hotel", label: "Hotel", coordinates: [19.05, 47.5] } satisfies MapPoint;
     const props = { token: "pk.test", points, onSelect: vi.fn() };

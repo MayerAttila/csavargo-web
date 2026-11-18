@@ -17,6 +17,7 @@ export type MapCanvasProps = {
   onPlaceSelect?: (point: MapPoint) => void;
   onViewportChange?: (bounds: MapBounds | undefined) => void;
   discoveryPoints?: MapPoint[];
+  showLodgingLabels?: boolean;
   selectedDiscoveryId?: string;
   hideBasemapPlaces?: boolean;
   initialView?: MapView;
@@ -28,7 +29,29 @@ export type MapCanvasProps = {
 };
 const styles = { standard: "mapbox://styles/mapbox/standard", satellite: "mapbox://styles/mapbox/satellite-streets-v12" };
 
-export function MapCanvas({ points, lodging, selectedId, onSelect, onMapClick, onPlaceSelect, onViewportChange, discoveryPoints, selectedDiscoveryId, hideBasemapPlaces = false, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
+function bedIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "size-4");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 15h18M5 10V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3m-7-5v5");
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "2");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.append(path);
+  return svg;
+}
+
+type LabelBounds = { left: number; right: number; top: number; bottom: number };
+
+function overlaps(first: LabelBounds, second: LabelBounds) {
+  return first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
+}
+
+export function MapCanvas({ points, lodging, selectedId, onSelect, onMapClick, onPlaceSelect, onViewportChange, discoveryPoints, selectedDiscoveryId, showLodgingLabels = false, hideBasemapPlaces = false, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
   className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", missingTokenHint }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
@@ -156,19 +179,7 @@ export function MapCanvas({ points, lodging, selectedId, onSelect, onMapClick, o
     element.setAttribute("aria-label", `Szállás: ${lodging.label}`);
     element.className = "grid size-8 place-items-center rounded-full border-2 border-white bg-violet-700 text-white shadow-lg";
     element.style.pointerEvents = "none";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("class", "size-4");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 15h18M5 10V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3m-7-5v5");
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "2");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.append(path);
-    element.append(svg);
+    element.append(bedIcon());
     const offset: [number, number] = points.some((point) => sameMapPlace(point, lodging)) ? [0, -18] : [0, 0];
     const marker = new mapbox.Marker({ element, anchor: "bottom", offset }).setLngLat(lodging.coordinates).addTo(instance);
     return () => { marker.remove(); };
@@ -180,17 +191,52 @@ export function MapCanvas({ points, lodging, selectedId, onSelect, onMapClick, o
     if (!instance || !mapbox || status !== "ready" || !discoveryPoints?.length) return;
     const markers = discoveryPoints.map((point) => {
       const button = document.createElement("button");
+      const label = document.createElement("span");
       button.type = "button";
       button.title = point.label;
       button.setAttribute("aria-label", `Találat kiválasztása: ${point.label}`);
       button.setAttribute("aria-pressed", String(point.id === selectedDiscoveryId));
-      button.className = `grid size-7 place-items-center rounded-full border-2 border-white bg-action text-white shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${point.id === selectedDiscoveryId ? "ring-4 ring-brand/45" : ""}`;
-      button.textContent = "•";
+      if (showLodgingLabels) {
+        button.className = "group/poi grid size-6 place-items-center rounded-sm border border-border bg-surface text-foreground shadow-sm hover:z-10 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+        label.className = "pointer-events-none absolute top-1/2 left-full ml-1 w-max max-w-40 -translate-y-1/2 truncate text-left text-xs font-semibold text-foreground text-shadow-[0_1px_2px_var(--background),0_0_4px_var(--background)] group-hover/poi:visible group-focus-visible/poi:visible";
+        label.textContent = point.label;
+        button.append(bedIcon(), label);
+      } else {
+        button.className = `grid size-7 place-items-center rounded-full border-2 border-white bg-action text-white shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${point.id === selectedDiscoveryId ? "ring-4 ring-brand/45" : ""}`;
+        button.textContent = "•";
+      }
       button.onclick = (event) => { event.stopPropagation(); latest.current.onPlaceSelect?.(point); };
-      return new mapbox.Marker({ element: button }).setLngLat(point.coordinates).addTo(instance);
+      return { point, label, marker: new mapbox.Marker({ element: button }).setLngLat(point.coordinates).addTo(instance) };
     });
-    return () => markers.forEach((marker) => marker.remove());
-  }, [discoveryPoints, selectedDiscoveryId, status, attempt]);
+    const layoutLabels = () => {
+      const width = container.current?.clientWidth;
+      const height = container.current?.clientHeight;
+      if (!width || !height) return;
+      const positions = markers.map(({ point }) => instance.project(point.coordinates));
+      const occupied: LabelBounds[] = positions.map(({ x, y }) => ({ left: x - 12, right: x + 12, top: y - 12, bottom: y + 12 }));
+      markers.forEach(({ label }, index) => {
+        const { x, y } = positions[index];
+        const halfHeight = label.offsetHeight / 2;
+        const bounds = { left: x + 16, right: x + 20 + label.offsetWidth, top: y - halfHeight - 2, bottom: y + halfHeight + 2 };
+        const visible = bounds.left >= 0 && bounds.right <= width && bounds.top >= 0 && bounds.bottom <= height
+          && !occupied.some((other) => overlaps(bounds, other));
+        label.classList.toggle("invisible", !visible);
+        if (visible) occupied.push(bounds);
+      });
+    };
+    if (showLodgingLabels) {
+      layoutLabels();
+      instance.on("moveend", layoutLabels);
+      instance.on("resize", layoutLabels);
+    }
+    return () => {
+      if (showLodgingLabels) {
+        instance.off("moveend", layoutLabels);
+        instance.off("resize", layoutLabels);
+      }
+      markers.forEach(({ marker }) => marker.remove());
+    };
+  }, [discoveryPoints, selectedDiscoveryId, showLodgingLabels, status, attempt]);
 
   useEffect(() => {
     const instance = map.current;

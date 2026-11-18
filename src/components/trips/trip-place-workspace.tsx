@@ -82,6 +82,7 @@ export function TripPlaceWorkspace({ token, activeDay, points, lodging, candidat
           });
         } : undefined}
         onViewportChange={updateBounds} discoveryPoints={discoveryPoints} selectedDiscoveryId={candidate?.point.id}
+        showLodgingLabels={categoryId === lodgingCategory.id}
         hideBasemapPlaces={Boolean(categoryId)}
         missingTokenHint="Az úti cél és a látnivalók kereséséhez be kell állítani a térképszolgáltatást."
         className="h-[46svh] min-h-72 lg:h-[clamp(24rem,55svh,44rem)]" />
