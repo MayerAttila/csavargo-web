@@ -1,22 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HiOutlineCheck, HiOutlineClock, HiOutlineEnvelope, HiOutlineUserPlus, HiOutlineUsers } from "react-icons/hi2";
+import { HiOutlineCheck, HiOutlineClock, HiOutlineEnvelope, HiOutlineUserPlus } from "react-icons/hi2";
 import { changeTripInvitation, getTripInviteOptions, sendTripInvitation } from "@/lib/trip-invitations-api";
 import { notify } from "@/lib/notifications";
 
-export function ManageTripInvitations({ slug, userId }: { slug: string; userId: string }) {
+export function ManageTripInvitations({ slug, userId, onChanged }: { slug: string; userId: string; onChanged?: () => void }) {
   const [companionId, setCompanionId] = useState("");
   const client = useQueryClient();
   const key = ["trip-invite-options", userId, slug];
   const query = useQuery({ queryKey: key, queryFn: ({ signal }) => getTripInviteOptions(slug, signal), retry: false });
   const mutation = useMutation({
     mutationFn: ({ invite, id }: { invite: boolean; id: string }) => invite ? sendTripInvitation(slug, id) : changeTripInvitation(id, "remove"),
-    onSuccess: (_, { invite }) => { if (invite) { setCompanionId(""); notify.success("A meghívást elküldtük."); } },
-    onError: (error) => notify.error(error.message),
+    onSuccess: (_, { invite }) => {
+      if (invite) { setCompanionId(""); notify.success("A meghívást elküldtük."); }
+      onChanged?.();
+    },
     onSettled: () => client.invalidateQueries({ queryKey: key }),
+    meta: { silent: true },
   });
   const selection = query.data?.available.some(({ id }) => id === companionId) ? companionId : "";
 
@@ -33,30 +35,26 @@ export function ManageTripInvitations({ slug, userId }: { slug: string; userId: 
 
   const accepted = query.data.invitations.filter((entry) => entry.accepted).length;
   const pending = query.data.invitations.length - accepted;
+  const hasAvailable = query.data.available.length > 0;
   return <div className="grid items-start gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+    {mutation.error && <p role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm md:col-span-2">{mutation.error.message}</p>}
     <form method="post" onSubmit={submit} className="min-w-0 space-y-4 rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <h2 className="flex items-center gap-3 text-lg font-semibold">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand"><HiOutlineUserPlus aria-hidden="true" className="size-5" /></span>
         Meghívás küldése
       </h2>
-      {query.data.available.length ? <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <label className="grid min-w-0 flex-[1_1_12rem] gap-1.5 text-sm font-medium">
           Útitárs
-          <select value={selection} onChange={(event) => setCompanionId(event.target.value)} disabled={mutation.isPending}
-            className="min-h-11 rounded-xl border border-border bg-background px-3 focus-visible:outline-2 focus-visible:outline-brand">
-            <option value="">Válassz útitársat</option>
+          <select value={selection} onChange={(event) => setCompanionId(event.target.value)} disabled={!hasAvailable || mutation.isPending}
+            className="min-h-11 rounded-xl border border-border bg-background px-3 focus-visible:outline-2 focus-visible:outline-brand disabled:text-muted-foreground">
+            <option value="">{hasAvailable ? "Válassz útitársat" : "Nincs meghívható útitárs"}</option>
             {query.data.available.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
           </select>
         </label>
-        <button type="submit" disabled={!selection || mutation.isPending}
-          className="min-h-11 rounded-xl bg-action px-3 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50">Meghívás küldése</button>
-      </div> : <div className="space-y-3 rounded-xl border border-border/70 bg-background/50 p-3">
-        <p className="text-sm text-muted-foreground">{query.data.invitations.length
-          ? "Minden jelenleg elérhető útitársat meghívtál." : "Nincs meghívható útitársad ehhez az utazáshoz."}</p>
-        <Link href="/utitarsak" className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-brand hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-brand">
-          <HiOutlineUsers aria-hidden="true" className="size-4" /> Útitársak kezelése
-        </Link>
-      </div>}
+        {hasAvailable && <button type="submit" disabled={!selection || mutation.isPending}
+          className="min-h-11 rounded-xl bg-action px-3 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50">Meghívás küldése</button>}
+      </div>
     </form>
     <section aria-label="Elküldött meghívások" className="min-w-0 space-y-4 rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <h2 className="flex items-center gap-3 text-lg font-semibold">

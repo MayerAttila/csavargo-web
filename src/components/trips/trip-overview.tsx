@@ -49,7 +49,7 @@ export function TripOverview({ trips, today, userId }: { trips: TripSummary[] | 
       </div>
       {visible.length ? <ul aria-label="Mentett utazások" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[1420px]:grid-cols-4 xl:gap-5">
         {visible.map(({ trip, status }) => <li key={trip.slug} className="min-w-0">
-          <TripCard trip={trip} slug={trip.slug} status={status} inProgress={trip.start <= today && today <= trip.end} />
+          <TripCard trip={trip} slug={trip.slug} userId={userId} status={status} inProgress={trip.start <= today && today <= trip.end} />
         </li>)}
       </ul> : <p role="status" className="rounded-2xl border border-border bg-surface px-4 py-10 text-center text-sm text-muted-foreground">
         Nincs ilyen állapotú utazás.
