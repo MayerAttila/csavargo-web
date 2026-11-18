@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { HiOutlineSquares2X2, HiOutlineGlobeEuropeAfrica, HiOutlineCalendarDays, HiOutlineMap,
   HiOutlineBanknotes, HiOutlineTicket, HiArrowRightOnRectangle, HiOutlineBars3,
-  HiOutlineXMark, HiOutlineMoon, HiOutlineSun, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight } from "react-icons/hi2";
+  HiOutlineXMark, HiOutlineMoon, HiOutlineSun, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlineUsers } from "react-icons/hi2";
 import { Brand } from "@/components/brand";
 import type { Me } from "@/lib/api";
 
@@ -54,6 +54,10 @@ function SidebarMenu({ user, pending, onLogout, expanded, mobile = false, onNavi
         <Link href="/utazasok" aria-label="Utazások" aria-current={pathname === "/utazasok" ? "page" : pathname?.startsWith("/utazasok/") ? "location" : undefined} title="Utazások" onClick={onNavigate}
           className={`${rowClass} ${pathname === "/utazasok" || pathname?.startsWith("/utazasok/") ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineGlobeEuropeAfrica aria-hidden="true" className="size-4.5" /></span><span className={textClass}>Utazások</span>
+        </Link>
+        <Link href="/utitarsak" aria-label="Útitársak" aria-current={pathname === "/utitarsak" ? "page" : undefined} title="Útitársak" onClick={onNavigate}
+          className={`${rowClass} ${pathname === "/utitarsak" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
+          <span className={slotClass}><HiOutlineUsers aria-hidden="true" className="size-4.5" /></span><span className={textClass}>Útitársak</span>
         </Link>
         <Link href="/terkep" aria-label="Térkép" aria-current={pathname === "/terkep" ? "page" : undefined} title="Térkép" onClick={onNavigate}
           className={`${rowClass} ${pathname === "/terkep" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
