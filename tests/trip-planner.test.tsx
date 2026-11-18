@@ -38,12 +38,14 @@ vi.mock("@/components/maps/search-api", () => ({ findSamplePlace: vi.fn() }));
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllEnvs(); });
 
 const button = (name: string) => screen.getByRole("button", { name, exact: true });
+const dayButton = (day: number) => within(screen.getByRole("group", { name: "Napválasztó" }))
+  .getByRole("button", { name: new RegExp(`^${day}\\. nap`) });
 const dayList = (day: number) => screen.getByRole("list", { name: `${day}. nap helyszínei` });
 
 async function setDates(user: ReturnType<typeof userEvent.setup>, start: string, end: string) {
   fireEvent.change(screen.getByLabelText("Kezdő dátum"), { target: { value: start } });
   fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: end } });
-  await user.click(button("Időszak beállítása"));
+  await user.click(button("Mentés"));
 }
 
 describe("V25: kirándulástervező", () => {
@@ -59,6 +61,7 @@ describe("V25: kirándulástervező", () => {
     await user.click(button("Széchenyi tér"));
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     await user.click(button("Hozzáadás ehhez a naphoz"));
+    expect(within(dayList(1)).queryByRole("button", { name: /átrendezése$/ })).not.toBeInTheDocument();
     await user.click(button("Széchenyi jelölő"));
     expect(button("A napi programban szerepel")).toBeDisabled();
     await user.click(button("Zsolnay jelölő"));
@@ -67,19 +70,19 @@ describe("V25: kirándulástervező", () => {
     await user.keyboard("{Enter}{ArrowUp}{Enter}");
     expect(within(dayList(1)).getAllByRole("listitem")[0]).toHaveTextContent("Zsolnay Negyed");
 
-    await user.click(button("Következő nap"));
+    await user.click(dayButton(2));
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tervezett: Zsolnay Negyed" })).not.toBeInTheDocument();
     await user.click(button("Széchenyi jelölő"));
     await user.click(button("Hozzáadás ehhez a naphoz"));
     expect(dayList(2)).toHaveTextContent("Széchenyi tér");
 
-    await user.click(button("Előző nap"));
+    await user.click(dayButton(1));
     expect(button("Tervezett: Zsolnay Negyed")).toBeInTheDocument();
     expect(screen.getByLabelText("Térképnézet")).toHaveTextContent('"type":"fit"');
     await user.click(button("Széchenyi tér törlése"));
     expect(dayList(1)).not.toHaveTextContent("Széchenyi tér");
-    await user.click(button("Következő nap"));
+    await user.click(dayButton(2));
     expect(dayList(2)).toHaveTextContent("Széchenyi tér");
   });
 
@@ -91,10 +94,11 @@ describe("V25: kirándulástervező", () => {
     await setDates(user, "2026-11-18", "2026-11-20");
     await setDates(user, "2026-11-18", "2026-11-19");
     expect(confirm).not.toHaveBeenCalled();
-    await user.click(button("Következő nap"));
+    await user.click(dayButton(2));
     await user.click(button("Zsolnay jelölő"));
     await user.click(button("Hozzáadás ehhez a naphoz"));
 
+    await user.click(button("Úti cél cseréje"));
     await user.click(button("Budapest"));
     expect(dayList(2)).toHaveTextContent("Zsolnay Negyed");
     expect(screen.getByLabelText("Térképnézet")).toHaveTextContent("[19.04,47.49]");
@@ -107,10 +111,10 @@ describe("V25: kirándulástervező", () => {
     expect(dayList(1)).toHaveTextContent("Zsolnay Negyed");
     expect(screen.getByLabelText("Kezdő dátum")).toHaveValue("2026-11-19");
     await setDates(user, "2026-11-20", "2026-11-20");
-    expect(button("Előző nap")).toBeDisabled();
-    expect(button("Következő nap")).toBeDisabled();
+    expect(dayButton(1)).toHaveAttribute("aria-pressed", "true");
+    expect(within(screen.getByRole("group", { name: "Napválasztó" })).getAllByRole("button")).toHaveLength(1);
     await setDates(user, "2026-11-19", "2026-11-20");
-    await user.click(button("Előző nap"));
+    await user.click(dayButton(1));
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
     unmount();
@@ -125,10 +129,20 @@ describe("V25: kirándulástervező", () => {
     render(<TripPlanner />);
     await setDates(user, "2026-03-28", "2026-03-30");
     expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("1. nap / 3");
-    await user.click(button("Következő nap"));
-    await user.click(button("Következő nap"));
+    await user.click(dayButton(3));
     expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("2026. március 30.");
-    expect(button("Következő nap")).toBeDisabled();
+    expect(dayButton(3)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("lets every day in a longer trip be selected directly by date", async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await setDates(user, "2026-11-18", "2027-01-10");
+    const picker = screen.getByLabelText("Nap kiválasztása");
+    expect(picker).toHaveAttribute("max", "2027-01-10");
+    fireEvent.change(picker, { target: { value: "2027-01-10" } });
+    expect(picker).toHaveValue("2027-01-10");
+    expect(screen.getByRole("group", { name: "Napválasztó" })).toHaveTextContent("54. nap / 54");
   });
 
   it.each(["mouse", "touch"])("reorders by the drag handle with %s input and lets the user toggle place details", async (pointerType) => {
@@ -149,6 +163,7 @@ describe("V25: kirándulástervező", () => {
     vi.spyOn(first, "getBoundingClientRect").mockReturnValue({ top: 0, height: 50 } as DOMRect);
     vi.spyOn(second, "getBoundingClientRect").mockReturnValue({ top: 60, height: 50 } as DOMRect);
     const handle = button("Zsolnay Negyed átrendezése");
+    expect(handle).toHaveTextContent("2");
     handle.setPointerCapture = vi.fn();
     const pointer = { button: 0, pointerId: 1, isPrimary: true, pointerType, clientX: 100 };
     fireEvent.pointerDown(handle, { ...pointer, clientY: 85 });

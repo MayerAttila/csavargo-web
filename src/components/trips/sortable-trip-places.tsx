@@ -1,16 +1,16 @@
 import { useId, useRef, useState, type PointerEvent, type ReactNode } from "react";
-import { HiOutlineBars3 } from "react-icons/hi2";
+import { PiDotsSixVertical } from "react-icons/pi";
 import type { MapPoint } from "@/components/maps/types";
 
 type Props = {
   dayNumber: number;
   places: MapPoint[];
   onMove: (id: string, index: number) => void;
-  renderPlace: (place: MapPoint, index: number, dragHandle: ReactNode) => ReactNode;
+  renderPlace: (place: MapPoint, orderBadge: ReactNode) => ReactNode;
 };
 
 type Drag = { id: string; target: number; mode: "pointer" | "keyboard" };
-const handleClass = "grid size-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-surface-alt hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-40";
+const badgeClass = "grid size-8 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand";
 
 export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: Props) {
   const [drag, setDrag] = useState<Drag>();
@@ -67,15 +67,15 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
   }
 
   return <>
-    <p id={instructions} className="sr-only">A helyet húzással rendezheted. Billentyűzettel az Enter vagy a szóköz felveszi és leteszi, a nyilak mozgatják, az Escape megszakítja.</p>
+    {places.length > 1 && <p id={instructions} className="sr-only">A helyet a sorszámánál fogva húzhatod. Billentyűzettel az Enter vagy a szóköz felveszi és leteszi, a nyilak mozgatják, az Escape megszakítja.</p>}
     <p aria-live="polite" className="sr-only">{drag?.mode === "keyboard" ? `Célpozíció: ${drag.target + 1} / ${places.length}` : ""}</p>
     <ol ref={list} aria-label={`${dayNumber}. nap helyszínei`} className="mt-3 space-y-2">
       {places.map((place, index) => {
         const insertion = drag?.target === index && index !== dragIndex;
-        const dragHandle = (
+        const orderBadge = places.length > 1 ? (
           <button type="button" aria-label={`${place.label} átrendezése`} aria-describedby={instructions} aria-pressed={drag?.id === place.id}
-            title="Húzd a hely átrendezéséhez" disabled={places.length < 2}
-            className={`${handleClass} touch-none cursor-grab select-none active:cursor-grabbing disabled:cursor-default`}
+            title="Húzd a sorszámot az átrendezéshez"
+            className="group/grip flex shrink-0 touch-none cursor-grab select-none items-center gap-0.5 rounded-full focus-visible:outline-2 focus-visible:outline-brand active:cursor-grabbing"
             onPointerDown={startPointer} onPointerMove={(event) => movePointer(event, place, index)}
             onPointerUp={(event) => dropPointer(event, place, index)} onPointerCancel={cancelPointer} onLostPointerCapture={cancelPointer}
             onClick={(event) => { if (event.detail === 0) toggleKeyboard(place, index); }}
@@ -88,12 +88,13 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
               setDrag({ ...drag, target: Math.max(0, Math.min(places.length - 1, drag.target + delta)) });
             }}
             onBlur={() => { if (drag?.mode === "keyboard") setDrag(undefined); }}>
-            <HiOutlineBars3 aria-hidden="true" className="size-5" />
+            <PiDotsSixVertical aria-hidden="true" className="size-3.5 text-muted-foreground group-hover/grip:text-brand" />
+            <span className={badgeClass}>{index + 1}</span>
           </button>
-        );
+        ) : <span aria-hidden="true" className={badgeClass}>{index + 1}</span>;
         return <li key={place.id} className={`relative rounded-xl border border-border bg-background ${drag?.id === place.id ? "border-brand bg-brand/10" : ""}`}>
           {insertion && <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 h-0.5 rounded bg-brand ${index < dragIndex ? "-top-1.5" : "-bottom-1.5"}`} />}
-          {renderPlace(place, index, dragHandle)}
+          {renderPlace(place, orderBadge)}
         </li>;
       })}
     </ol>

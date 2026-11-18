@@ -58,9 +58,9 @@ export function TripDayPlaces({ dayNumber, places, token, onMove, onSelect, onRe
   }
 
   return <SortableTripPlaces dayNumber={dayNumber} places={places} onMove={onMove}
-    renderPlace={(place, index, dragHandle) => {
+    renderPlace={(place, orderBadge) => {
       const expanded = expandedId === place.id;
-      return <TripPlaceRow label={place.label} position={index + 1} expanded={expanded} dragHandle={dragHandle}
+      return <TripPlaceRow label={place.label} expanded={expanded} orderBadge={orderBadge}
         onToggle={() => toggleDetails(place)}
         onRemove={() => { if (expanded) closeDetails(); onRemove(place); }}
         details={<PlaceInfoPanel point={enriched[place.id] ?? place} status={infoStatus} onRetry={() => void loadDetails(place)} />} />;

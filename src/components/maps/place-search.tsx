@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type Ref } from "react";
 import { Input } from "@/components/ui/input";
 import { notify } from "@/lib/notifications";
 import { isPublicMapToken, mapErrorMessage } from "./map-errors";
@@ -9,7 +9,15 @@ import type { MapPoint } from "./types";
 type SearchSession = { id: string; startedAt: number; calls: number };
 type Results = { query: string; items: PlaceSuggestion[]; session: string };
 
-export function PlaceSearch({ token, onSelect, label }: { token: string; onSelect: (point: MapPoint) => void; label?: string }) {
+type PlaceSearchProps = {
+  token: string;
+  onSelect: (point: MapPoint) => void;
+  label?: string;
+  inputRef?: Ref<HTMLInputElement>;
+  autoFocus?: boolean;
+};
+
+export function PlaceSearch({ token, onSelect, label, inputRef, autoFocus }: PlaceSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,7 +88,7 @@ export function PlaceSearch({ token, onSelect, label }: { token: string; onSelec
   return <div className="relative" onBlur={(event) => {
     if (!event.currentTarget.contains(event.relatedTarget)) { cancel(); setOpen(false); setBusy(false); }
   }}>
-    <Input type="search" label={label} value={query} maxLength={256} disabled={!enabled} role="combobox" aria-autocomplete="list"
+    <Input ref={inputRef} autoFocus={autoFocus} type="search" label={label} value={query} maxLength={256} disabled={!enabled} role="combobox" aria-autocomplete="list"
       aria-expanded={items.length > 0} aria-controls={listId} aria-activedescendant={items[active] ? `${listId}-${active}` : undefined}
       aria-describedby={`${listId}-hint`} onChange={(event) => change(event.target.value)}
       onFocus={() => setOpen(true)} onKeyDown={(event) => {

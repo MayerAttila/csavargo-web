@@ -1,35 +1,22 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineMapPin } from "react-icons/hi2";
-import { MapCanvas } from "@/components/maps/map-canvas";
+import { useRef, useState, type FormEvent } from "react";
+import { isPublicMapToken } from "@/components/maps/map-errors";
 import { sameMapPlace } from "@/components/maps/map-poi";
-import { PlaceSearch } from "@/components/maps/place-search";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
 import { notify } from "@/lib/notifications";
-import { TripDayPlaces } from "./trip-day-places";
+import { calendarDay, dateInputValue, type TripDateInputs, type TripDateRange } from "./trip-calendar";
+import { TripAgenda } from "./trip-agenda";
+import { TripPlaceWorkspace } from "./trip-place-workspace";
+import { TripSettings } from "./trip-settings";
 
 const emptyDay: MapPoint[] = [];
-const panelClass = "rounded-2xl border border-border bg-surface p-4 sm:p-5";
-const controlClass = "rounded-lg border border-border text-sm font-medium hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-40";
-const iconButtonClass = `${controlClass} grid size-10 shrink-0 place-items-center`;
-const primaryClass = "min-h-11 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50";
-const dateInputClass = "h-11 min-w-0 w-full rounded-lg border border-border bg-background px-2 focus-visible:outline-2 focus-visible:outline-brand";
-const dayInMilliseconds = 86_400_000;
-const dateFormatter = new Intl.DateTimeFormat("hu-HU", { dateStyle: "long", timeZone: "UTC" });
-
-type DateRange = { start: number; end: number };
-
-function calendarDay(value: string) {
-  // Treat dates as UTC calendar days so daylight saving never changes the trip length.
-  return Date.parse(`${value}T00:00:00Z`) / dayInMilliseconds;
-}
 
 export function TripPlanner() {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const [destination, setDestination] = useState<MapPoint>();
-  const [range, setRange] = useState<DateRange>();
-  const [dateInputs, setDateInputs] = useState({ start: "", end: "" });
+  const [range, setRange] = useState<TripDateRange>();
+  const [dateInputs, setDateInputs] = useState<TripDateInputs>({ start: "", end: "" });
   const [activeDay, setActiveDay] = useState<number>();
   const [days, setDays] = useState<Partial<Record<number, MapPoint[]>>>({});
   const [candidate, setCandidate] = useState<MapPoint>();
@@ -37,7 +24,7 @@ export function TripPlanner() {
   const places = activeDay === undefined ? emptyDay : days[activeDay] ?? emptyDay;
   const existing = candidate ? places.find((place) => sameMapPlace(place, candidate)) : undefined;
   const canPlan = Boolean(destination && range);
-  const dayNumber = range && activeDay !== undefined ? activeDay - range.start + 1 : 0;
+  const searchRef = useRef<HTMLInputElement>(null);
 
   function chooseDestination(point: MapPoint) {
     setDestination(point);
@@ -75,8 +62,8 @@ export function TripPlanner() {
     const dropsStops = Object.entries(days).some(([day, stops]) => !insideRange(Number(day)) && stops?.length);
     if (dropsStops && !window.confirm("Az új időszakon kívül eső napok programja törlődik. Módosítod az időszakot?")) {
       if (range) setDateInputs({
-        start: new Date(range.start * dayInMilliseconds).toISOString().slice(0, 10),
-        end: new Date(range.end * dayInMilliseconds).toISOString().slice(0, 10),
+        start: dateInputValue(range.start),
+        end: dateInputValue(range.end),
       });
       return;
     }
@@ -113,75 +100,24 @@ export function TripPlanner() {
     });
   }
 
-  return <div className="mx-auto w-full max-w-[100rem] space-y-5">
-    <header>
+  return <div className="mx-auto w-full max-w-[100rem] space-y-4 sm:space-y-5">
+    <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
       <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Kirándulástervező</h1>
-      <p className="mt-1 text-sm text-muted-foreground">A terv oldalfrissítéskor és az oldal elhagyásakor törlődik.</p>
+      <p className="text-xs text-muted-foreground sm:text-sm">A terv oldalfrissítéskor és az oldal elhagyásakor törlődik.</p>
     </header>
 
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(19rem,24rem)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr]">
-      <section aria-labelledby="trip-settings" className={`${panelClass} space-y-4 lg:col-start-1 lg:row-start-1`}>
-        <h2 id="trip-settings" className="font-semibold">Úti cél és időtartam</h2>
-        {destination && <p className="flex items-start gap-2 text-sm font-medium" role="status">
-          <HiOutlineMapPin aria-hidden="true" className="size-5 shrink-0 text-brand" />
-          <span className="min-w-0 wrap-break-word">{destination.label}</span>
-        </p>}
-        <PlaceSearch token={token} onSelect={chooseDestination} label={destination ? "Úti cél módosítása" : "Úti cél keresése"} />
-        <form className="space-y-3" noValidate onSubmit={applyDateRange}>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="grid min-w-0 gap-1.5 text-sm font-medium">
-              Kezdő dátum
-              <input className={dateInputClass} type="date" required value={dateInputs.start}
-                onChange={(event) => setDateInputs({ ...dateInputs, start: event.target.value })} />
-            </label>
-            <label className="grid min-w-0 gap-1.5 text-sm font-medium">
-              Záró dátum
-              <input className={dateInputClass} type="date" required min={dateInputs.start || undefined} value={dateInputs.end}
-                onChange={(event) => setDateInputs({ ...dateInputs, end: event.target.value })} />
-            </label>
-          </div>
-          <button type="submit" className={`${controlClass} min-h-11 px-3 py-2`}>Időszak beállítása</button>
-        </form>
-      </section>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,0.6fr)_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-4">
+        <TripSettings token={token} destination={destination} dates={dateInputs}
+          onDestination={chooseDestination} onDates={setDateInputs} onApplyRange={applyDateRange} />
+        <TripAgenda token={token} range={range} activeDay={activeDay} places={places}
+          canAdd={canPlan && isPublicMapToken(token)} onDay={chooseDay} onFind={() => searchRef.current?.focus()}
+          onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} />
+      </div>
 
-      {range && activeDay !== undefined && <div role="group" aria-label="Napválasztó" className={`${panelClass} flex items-center justify-between gap-3 py-3 lg:col-start-1 lg:row-start-2`}>
-        <button type="button" aria-label="Előző nap" className={iconButtonClass} disabled={activeDay === range.start} onClick={() => chooseDay(activeDay - 1)}>
-          <HiOutlineChevronLeft aria-hidden="true" className="size-4" />
-        </button>
-        <p className="text-center text-sm font-semibold" aria-live="polite">
-          {dayNumber}. nap <span className="font-normal text-muted-foreground">/ {range.end - range.start + 1}</span>
-          <span className="block text-xs font-normal text-muted-foreground">{dateFormatter.format(activeDay * dayInMilliseconds)}</span>
-        </p>
-        <button type="button" aria-label="Következő nap" className={iconButtonClass} disabled={activeDay === range.end} onClick={() => chooseDay(activeDay + 1)}>
-          <HiOutlineChevronRight aria-hidden="true" className="size-4" />
-        </button>
-      </div>}
-
-      <section aria-label="Helyek kiválasztása" className={`${panelClass} min-w-0 space-y-4 lg:col-start-2 lg:row-span-3 lg:row-start-1`}>
-        {canPlan ? <PlaceSearch key={activeDay} token={token} onSelect={choosePlace} label="Látnivaló keresése" />
-          : <p className="text-sm text-muted-foreground">Válassz úti célt és időszakot a látnivalók hozzáadásához.</p>}
-        <MapCanvas token={token} points={places} selectedId={existing?.id} cameraCommand={camera}
-          onSelect={(id) => { const point = places.find((place) => place.id === id); if (point) choosePlace(point); }}
-          onPlaceSelect={canPlan ? choosePlace : undefined}
-          missingTokenHint="Az úti cél és a látnivalók kereséséhez be kell állítani a térképszolgáltatást."
-          className="h-[44svh] min-h-72 lg:h-[min(62svh,48rem)]" />
-        {candidate ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
-          <div className="min-w-0 wrap-break-word">
-            <h2 className="text-sm font-semibold">{candidate.label}</h2>
-            {candidate.address && <p className="text-xs text-muted-foreground">{candidate.address}</p>}
-          </div>
-          <button type="button" className={primaryClass} onClick={addPlace} disabled={Boolean(existing)}>
-            {existing ? "A napi programban szerepel" : "Hozzáadás ehhez a naphoz"}
-          </button>
-        </div> : canPlan && <p className="text-sm text-muted-foreground">A programhoz válassz helyet a térképen vagy a keresőből.</p>}
-      </section>
-
-      {range && <section aria-labelledby="trip-day" className={`${panelClass} lg:col-start-1 lg:row-start-3`}>
-        <h2 id="trip-day" className="font-semibold">A nap programja</h2>
-        {places.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">Ehhez a naphoz még nem adtál helyeket.</p>
-          : <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places} token={token}
-              onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} />}
-      </section>}
+      <TripPlaceWorkspace token={token} activeDay={activeDay} canPlan={canPlan} points={places}
+        candidate={candidate} selectedId={existing?.id} camera={camera} searchRef={searchRef}
+        onSelect={choosePlace} onAdd={addPlace} />
     </div>
   </div>;
 }
