@@ -5,15 +5,18 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { HiOutlineMapPin } from "react-icons/hi2";
 import { getTripCover } from "@/lib/api";
+import { getSharedTripCover } from "@/lib/trip-invitations-api";
 
-export function TripCardCover({ slug, children }: { slug: string; children: ReactNode }) {
+export function TripCardCover({ slug, sharedId, children, className = "aspect-video" }: {
+  slug?: string; sharedId?: string; children?: ReactNode; className?: string;
+}) {
   const viewport = useRef<HTMLDivElement>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [failedImageUrl, setFailedImageUrl] = useState<string>();
   const { data } = useQuery({
-    queryKey: ["trip-cover", slug],
-    queryFn: ({ signal }) => getTripCover(slug, signal),
-    enabled: nearViewport || (typeof window !== "undefined" && typeof IntersectionObserver === "undefined"),
+    queryKey: ["trip-cover", sharedId ? "shared" : "owner", sharedId ?? slug],
+    queryFn: ({ signal }) => sharedId ? getSharedTripCover(sharedId, signal) : slug ? getTripCover(slug, signal) : null,
+    enabled: Boolean(sharedId || slug) && (nearViewport || (typeof window !== "undefined" && typeof IntersectionObserver === "undefined")),
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
@@ -31,7 +34,7 @@ export function TripCardCover({ slug, children }: { slug: string; children: Reac
   }, [nearViewport]);
 
   const cover = data?.imageUrl === failedImageUrl ? null : data;
-  return <div ref={viewport} className="relative aspect-video overflow-hidden bg-linear-to-br from-sky-100 to-blue-200 dark:from-slate-700 dark:to-blue-950">
+  return <div ref={viewport} className={`relative overflow-hidden bg-linear-to-br from-sky-100 to-blue-200 dark:from-slate-700 dark:to-blue-950 ${className}`}>
     <HiOutlineMapPin aria-hidden="true" className="absolute top-1/2 left-1/2 size-12 -translate-1/2 text-blue-700/70 dark:text-blue-200/80" />
     {cover && <>
       <Image

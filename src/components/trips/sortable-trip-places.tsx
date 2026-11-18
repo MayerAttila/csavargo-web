@@ -5,7 +5,7 @@ import type { MapPoint } from "@/components/maps/types";
 type Props = {
   dayNumber: number;
   places: MapPoint[];
-  onMove: (id: string, index: number) => void;
+  onMove?: (id: string, index: number) => void;
   renderPlace: (place: MapPoint, orderBadge: ReactNode) => ReactNode;
 };
 
@@ -51,7 +51,7 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
     if (drag || Math.abs(event.clientY - pointer.current.startY) >= 5) {
       const bounds = list.current?.getBoundingClientRect();
       if (bounds && event.clientX >= bounds.left && event.clientX <= bounds.right) {
-        onMove(place.id, targetAt(event.clientY, index));
+        onMove?.(place.id, targetAt(event.clientY, index));
       }
     }
     cancelPointer(event);
@@ -59,7 +59,7 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
 
   function toggleKeyboard(place: MapPoint, index: number) {
     if (drag?.mode === "keyboard" && drag.id === place.id) {
-      onMove(place.id, drag.target);
+      onMove?.(place.id, drag.target);
       setDrag(undefined);
     } else if (!drag && !pointer.current) {
       setDrag({ id: place.id, target: index, mode: "keyboard" });
@@ -67,12 +67,12 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
   }
 
   return <>
-    {places.length > 1 && <p id={instructions} className="sr-only">A helyet a sorszámánál fogva húzhatod. Billentyűzettel az Enter vagy a szóköz felveszi és leteszi, a nyilak mozgatják, az Escape megszakítja.</p>}
+    {onMove && places.length > 1 && <p id={instructions} className="sr-only">A helyet a sorszámánál fogva húzhatod. Billentyűzettel az Enter vagy a szóköz felveszi és leteszi, a nyilak mozgatják, az Escape megszakítja.</p>}
     <p aria-live="polite" className="sr-only">{drag?.mode === "keyboard" ? `Célpozíció: ${drag.target + 1} / ${places.length}` : ""}</p>
     <ol ref={list} aria-label={`${dayNumber}. nap helyszínei`} className="space-y-2">
       {places.map((place, index) => {
         const insertion = drag?.target === index && index !== dragIndex;
-        const orderBadge = places.length > 1 ? (
+        const orderBadge = onMove && places.length > 1 ? (
           <button type="button" aria-label={`${place.label} átrendezése`} aria-describedby={instructions} aria-pressed={drag?.id === place.id}
             title="Húzd a sorszámot az átrendezéshez"
             className="group/grip flex shrink-0 touch-none cursor-grab select-none items-center gap-0.5 rounded-full focus-visible:outline-2 focus-visible:outline-brand active:cursor-grabbing"

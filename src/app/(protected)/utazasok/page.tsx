@@ -16,8 +16,8 @@ async function loadTrips(): Promise<TripSummary[] | null> {
 }
 
 export default async function TripsPage() {
-  await requireServerMe();
+  const { user } = await requireServerMe();
   const trips = await loadTrips();
 
-  return <TripOverview trips={trips} today={localDate.format(new Date())} />;
+  return <TripOverview trips={trips} today={localDate.format(new Date())} userId={user.id} />;
 }

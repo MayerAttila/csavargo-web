@@ -8,7 +8,7 @@ type Props = {
   details: ReactNode;
   summary?: ReactNode;
   onToggle: () => void;
-  onRemove: () => void;
+  onRemove?: () => void;
 };
 
 export function TripPlaceRow({ label, expanded, orderBadge, details, summary, onToggle, onRemove }: Props) {
@@ -25,11 +25,11 @@ export function TripPlaceRow({ label, expanded, orderBadge, details, summary, on
         </span>
         <HiOutlineChevronRight aria-hidden="true" className={`size-4 shrink-0 text-muted-foreground ${expanded ? "rotate-90" : ""}`} />
       </button>
-      <button type="button" aria-label={`${label} törlése`}
+      {onRemove && <button type="button" aria-label={`${label} törlése`}
         className="grid size-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-surface-alt hover:text-red-600 focus-visible:outline-2 focus-visible:outline-brand dark:hover:text-red-400"
         onClick={onRemove}>
         <HiOutlineTrash aria-hidden="true" className="size-4" />
-      </button>
+      </button>}
     </div>
     {expanded && details}
   </>;

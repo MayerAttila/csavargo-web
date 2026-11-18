@@ -10,8 +10,8 @@ type Props = {
   places: MapPoint[];
   onDay: (day: number) => void;
   onSelect: (place: MapPoint) => void;
-  onRemove: (place: MapPoint) => void;
-  onMove: (id: string, index: number) => void;
+  onRemove?: (place: MapPoint) => void;
+  onMove?: (id: string, index: number) => void;
   getPlaceInfo: GetTripPlaceInfo;
 };
 
@@ -51,7 +51,7 @@ export function TripAgenda({ range, activeDay, places, onDay, onSelect, onRemove
         <div className="min-w-0 rounded-xl border border-border/70 bg-surface-alt/35 p-2.5 sm:p-3">
           {places.length ? <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places}
             onSelect={onSelect} onRemove={onRemove} onMove={onMove} getPlaceInfo={getPlaceInfo} />
-            : <p className="text-sm text-muted-foreground">Válassz egy helyet a térképen vagy a keresőből, majd add hozzá ehhez a naphoz.</p>}
+            : <p className="text-sm text-muted-foreground">{onMove ? "Válassz egy helyet a térképen vagy a keresőből, majd add hozzá ehhez a naphoz." : "Ehhez a naphoz még nincs mentett program."}</p>}
         </div>
       </div>
     ) : <p className="rounded-xl bg-surface-alt/40 p-3 text-sm text-muted-foreground">Állítsd be az utazás időszakát a napi programhoz.</p>}

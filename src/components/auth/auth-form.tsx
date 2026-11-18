@@ -17,7 +17,7 @@ const subscribeToHydration = () => () => {};
 const clientReady = () => true;
 const serverReady = () => false;
 export function AuthForm({ mode, token, invalidLink = false, destination = "/attekintes" }: {
-  mode: Mode; token?: string; invalidLink?: boolean; destination?: "/attekintes" | "/utitarsak";
+  mode: Mode; token?: string; invalidLink?: boolean; destination?: "/attekintes" | "/utitarsak" | "/utazasok";
 }) {
   const router = useRouter();
   const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);

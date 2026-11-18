@@ -18,10 +18,15 @@ function restoreDays(plan?: TripPlan) {
   return Object.fromEntries((plan?.days ?? []).map(({ date, stops }) => [calendarDay(date), stops.map(restorePoint)]));
 }
 
-export function TripPlanner({ slug, initialSaved = null }: { slug: string; initialSaved?: SavedTripPlan | null }) {
+type TripSnapshot = Pick<SavedTripPlan, "name" | "plan"> & { version?: number };
+type Props = { slug: string; initialSaved?: SavedTripPlan | null; sharedBy?: never }
+  | { slug?: never; initialSaved: TripSnapshot; sharedBy: string };
+
+export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
   const restored = initialSaved?.plan;
-  const [saved, setSaved] = useState(initialSaved);
+  const [saved, setSaved] = useState<TripSnapshot | null>(initialSaved);
+  const readOnly = sharedBy !== undefined;
   const destination = saved ? restorePoint(saved.plan.destination) : undefined;
   const range = saved ? { start: calendarDay(saved.plan.start), end: calendarDay(saved.plan.end) } : undefined;
   const [lodging, setLodging] = useState<MapPoint | undefined>(() => restored?.lodging ? restorePoint(restored.lodging) : undefined);
@@ -52,10 +57,10 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
     || JSON.stringify(plan?.days) !== JSON.stringify(saved?.plan.days);
 
   async function save() {
-    if (saving || (saved && !hasChanges)) return;
+    if (!slug || readOnly || saving || (saved && !hasChanges)) return;
     setSaving(true);
     try {
-      if (saved && plan) {
+      if (saved?.version !== undefined && plan) {
         setSaved(await saveTripPlan(slug, plan, saved.version, saved.name));
         notify.success("A tervet elmentettük a fiókodba.", { id: "trip-save" });
       } else {
@@ -93,6 +98,14 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
   }
 
   function toggleLodgingMapPick() {
+    if (readOnly) {
+      if (lodging) {
+        setPlaceView("map");
+        setCamera({ type: "view", view: { center: lodging.coordinates, zoom: 15 } });
+        placeWorkspace.current?.scrollIntoView?.({ block: "nearest" });
+      }
+      return;
+    }
     setPickingLodging(!pickingLodging);
     if (!pickingLodging) {
       setPlaceView("map");
@@ -146,7 +159,11 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
         <Link href="/utazasok" prefetch={false} className="text-xs font-medium text-muted-foreground hover:text-brand hover:underline">Vissza az utazásokhoz</Link>
         <h1 className="mt-1 wrap-break-word text-2xl font-bold tracking-tight sm:text-3xl">{saved?.name || "Kirándulástervező"}</h1>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      {readOnly ? <p className="rounded-full bg-brand/10 px-3 py-1 text-sm text-muted-foreground">
+        Megtekintés · Megosztotta {sharedBy}
+      </p> : <div className="flex flex-wrap items-center gap-2">
+        {saved && slug && <Link href={`/utazasok/${encodeURIComponent(slug)}/meghivasok`} prefetch={false}
+          className="inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-semibold hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-brand">Útitárs meghívása</Link>}
         <p role="status" className="text-xs text-muted-foreground">
           {!saved ? "A mentett terv lekérése sikertelen volt. Újra megpróbálhatod ezen az oldalon."
             : hasChanges ? "Mentetlen módosítások"
@@ -156,17 +173,17 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
           className="min-h-10 rounded-xl bg-action px-3 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-45">
           {saving ? "Folyamatban…" : !saved ? "Újrapróbálás" : "Terv mentése"}
         </button>
-      </div>
+      </div>}
     </header>
 
     {saved && <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,0.6fr)_minmax(0,1fr)]">
       <div className="grid min-w-0 gap-4">
         <section aria-label="Szállás" className="min-w-0 rounded-2xl border border-border/80 bg-surface shadow-sm">
-          <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={changeLodging}
+          <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={readOnly ? undefined : changeLodging}
             onToggleMapPick={toggleLodgingMapPick} />
         </section>
         <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay}
-          onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} getPlaceInfo={getPlaceInfo} />
+          onSelect={choosePlace} onRemove={readOnly ? undefined : removePlace} onMove={readOnly ? undefined : movePlace} getPlaceInfo={getPlaceInfo} />
       </div>
 
       <div ref={placeWorkspace} className="min-w-0">
@@ -174,7 +191,7 @@ export function TripPlanner({ slug, initialSaved = null }: { slug: string; initi
           candidate={candidate ? getPlaceInfo(candidate) : undefined} selectedId={existing?.id} camera={camera}
           view={placeView} onViewChange={(view) => { setPlaceView(view); if (view === "list") setPickingLodging(false); }}
           onLodgingPick={pickingLodging ? changeLodging : undefined} onCancelLodgingPick={() => setPickingLodging(false)}
-          onSelect={choosePlace} onAdd={addPlace} />
+          onSelect={choosePlace} onAdd={readOnly ? undefined : addPlace} />
       </div>
     </div>}
   </div>;

@@ -11,9 +11,9 @@ import type { GetTripPlaceInfo } from "./use-trip-place-info";
 type Props = {
   dayNumber: number;
   places: MapPoint[];
-  onMove: (id: string, index: number) => void;
+  onMove?: (id: string, index: number) => void;
   onSelect: (point: MapPoint) => void;
-  onRemove: (point: MapPoint) => void;
+  onRemove?: (point: MapPoint) => void;
   getPlaceInfo: GetTripPlaceInfo;
 };
 
@@ -32,7 +32,7 @@ export function TripDayPlaces({ dayNumber, places, onMove, onSelect, onRemove, g
       const info = expanded ? getPlaceInfo(place) : undefined;
       return <TripPlaceRow label={place.label} expanded={expanded} orderBadge={orderBadge}
         onToggle={() => toggleDetails(place)}
-        onRemove={() => { if (expanded) setExpandedId(undefined); onRemove(place); }}
+        onRemove={onRemove ? () => { if (expanded) setExpandedId(undefined); onRemove(place); } : undefined}
         summary={info && <TripPlaceSummary point={info.point} />}
         details={info && <PlaceInfoPanel {...info} layout="grid" />} />;
     }} />;

@@ -25,7 +25,7 @@ type Props = {
   onLodgingPick?: (point: MapPoint) => void;
   onCancelLodgingPick: () => void;
   onSelect: (point: MapPoint) => void;
-  onAdd: () => void;
+  onAdd?: () => void;
 };
 
 const views = [
@@ -117,11 +117,11 @@ export function TripPlaceWorkspace({ token, activeDay, points, lodging, candidat
           <h2 className="wrap-break-word text-base font-semibold tracking-tight">{candidate.point.label}</h2>
           <TripPlaceSummary point={candidate.point} />
         </div>
-        <button type="button" onClick={onAdd} disabled={Boolean(selectedId)}
+        {onAdd && <button type="button" onClick={onAdd} disabled={Boolean(selectedId)}
           className="flex min-h-10 items-center gap-1.5 rounded-xl bg-action px-3 text-xs font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:bg-surface-alt disabled:text-muted-foreground">
           {selectedId ? <><HiOutlineCheck aria-hidden="true" className="size-4" /> A napi programban szerepel</>
             : <><HiOutlinePlus aria-hidden="true" className="size-4" /> Hozzáadás ehhez a naphoz</>}
-        </button>
+        </button>}
       </div>
       <PlaceInfoPanel {...candidate} layout="grid" className="border-t border-border/70 pt-3" />
     </section>}
