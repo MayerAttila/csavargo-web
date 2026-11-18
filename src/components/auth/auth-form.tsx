@@ -16,7 +16,9 @@ const titles: Record<Mode, string> = {
 const subscribeToHydration = () => () => {};
 const clientReady = () => true;
 const serverReady = () => false;
-export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; token?: string; invalidLink?: boolean }) {
+export function AuthForm({ mode, token, invalidLink = false, destination = "/attekintes" }: {
+  mode: Mode; token?: string; invalidLink?: boolean; destination?: "/attekintes" | "/utitarsak";
+}) {
   const router = useRouter();
   const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
   const [pending, setPending] = useState(false);
@@ -68,7 +70,7 @@ export function AuthForm({ mode, token, invalidLink = false }: { mode: Mode; tok
             : "Nem sikerült ellenőrizni a bejelentkezést. Próbálj belépni a fiókodba.");
           return;
         }
-        navigateAfterAuth("/attekintes", mode === "register" ? "registered" : "signed-in");
+        navigateAfterAuth(destination, mode === "register" ? "registered" : "signed-in");
       }
     } catch { showError("Nem sikerült kapcsolódni. Ellenőrizd az internetkapcsolatodat, majd próbáld újra."); }
     finally { setPending(false); }
