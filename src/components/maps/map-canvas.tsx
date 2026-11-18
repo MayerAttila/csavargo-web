@@ -12,18 +12,19 @@ export type MapCanvasProps = {
   points: MapPoint[];
   selectedId?: string;
   onSelect: (id: string) => void;
-  onMapClick: (coordinates: Coordinates) => void;
+  onMapClick?: (coordinates: Coordinates) => void;
   onPlaceSelect?: (point: MapPoint) => void;
   initialView?: MapView;
   basemap?: MapBasemap;
   cameraCommand?: MapCameraCommand;
   className?: string;
   token?: string;
+  missingTokenHint?: string;
 };
 const styles = { standard: "mapbox://styles/mapbox/standard", satellite: "mapbox://styles/mapbox/satellite-streets-v12" };
 
 export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSelect, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
-  className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "" }: MapCanvasProps) {
+  className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", missingTokenHint }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
   const appliedBasemap = useRef<MapBasemap | null>(null);
@@ -69,7 +70,7 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
           if (!instance?.isStyleLoaded()) return;
           const place = poiAt(event);
           if (place) { latest.current.onPlaceSelect?.(place); return; }
-          latest.current.onMapClick([event.lngLat.lng, event.lngLat.lat]);
+          latest.current.onMapClick?.([event.lngLat.lng, event.lngLat.lat]);
         };
         const hover = (event: MapMouseEvent) => { if (instance) instance.getCanvas().style.cursor = poiAt(event) ? "pointer" : ""; };
         const leave = () => { if (instance) instance.getCanvas().style.cursor = ""; };
@@ -161,7 +162,7 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
     {(missing || invalid || status !== "ready") && <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/95 p-6 text-center">
       <div className="max-w-sm"><HiOutlineMap aria-hidden="true" className="mx-auto mb-4 size-10 text-brand" />
         <p role="status" className="font-semibold">{missing ? "A térkép beállításra vár" : invalid || status === "error" ? "A térkép nem tölthető be" : "Térkép betöltése…"}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{missing ? "A térkép és a helykeresés a szolgáltatás beállítása után lesz elérhető. A mintapontokat addig is megnézheted." : invalid || status === "error" ? "Ellenőrizd a kapcsolatot és a térképszolgáltatás beállításait." : "Egy pillanat, és indulhat a felfedezés."}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{missing ? missingTokenHint ?? "A térkép és a helykeresés a szolgáltatás beállítása után lesz elérhető. A mintapontokat addig is megnézheted." : invalid || status === "error" ? "Ellenőrizd a kapcsolatot és a térképszolgáltatás beállításait." : "Egy pillanat, és indulhat a felfedezés."}</p>
         {!missing && !invalid && status === "error" && <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-4 rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">Újrapróbálás</button>}
       </div>
     </div>}

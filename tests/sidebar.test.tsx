@@ -6,8 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { Sidebar } from "@/components/layout/sidebar";
 
-const mocks = vi.hoisted(() => ({ logout: vi.fn(), session: vi.fn(), navigate: vi.fn(), error: vi.fn(), setTheme: vi.fn(), theme: "light" }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/attekintes" }));
+const mocks = vi.hoisted(() => ({ logout: vi.fn(), session: vi.fn(), navigate: vi.fn(), error: vi.fn(), setTheme: vi.fn(), theme: "light", pathname: "/attekintes" }));
+vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 vi.mock("next-themes", () => ({ useTheme: () => ({ resolvedTheme: mocks.theme, setTheme: mocks.setTheme }) }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { signOut: mocks.logout, getSession: mocks.session } }));
 vi.mock("@/lib/auth-navigation", () => ({ navigateAfterAuth: mocks.navigate }));
@@ -21,6 +21,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.theme = "light";
+  mocks.pathname = "/attekintes";
   mocks.logout.mockResolvedValue({ error: null });
   mocks.session.mockResolvedValue({ data: { user: me.user, session: { id: "session" } } });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => me }));
@@ -44,11 +45,18 @@ describe("protected sidebar", () => {
     renderShell();
     expect(screen.getByRole("link", { name: "Áttekintés" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Térkép" })).toHaveAttribute("href", "/terkep");
-    expect(screen.getByRole("button", { name: "Utazások – hamarosan" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Utazások" })).toHaveAttribute("href", "/utazasok");
+    expect(screen.getByRole("button", { name: "Költségek – hamarosan" })).toBeDisabled();
     const sidebar = within(screen.getByRole("complementary", { name: "Oldalsáv" }));
     expect(sidebar.getByText("Teszt Utazó")).toBeInTheDocument();
     expect(sidebar.getByText("utazo@example.com")).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveTextContent("Privát oldal");
+  });
+  it("marks the trip planner as the current page", () => {
+    mocks.pathname = "/utazasok";
+    renderShell();
+    expect(screen.getByRole("link", { name: "Utazások" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Áttekintés" })).not.toHaveAttribute("aria-current");
   });
   it("can pin and unpin the expanded desktop sidebar", async () => {
     renderShell();
@@ -62,7 +70,7 @@ describe("protected sidebar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Menü megnyitása" }));
     const dialog = screen.getByRole("dialog", { name: "Navigáció" });
     expect(document.body).toHaveClass("overflow-hidden");
-    const link = within(dialog).getByRole("link", { name: "Áttekintés" });
+    const link = within(dialog).getByRole("link", { name: "Utazások" });
     link.addEventListener("click", (event) => event.preventDefault());
     await userEvent.click(link);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

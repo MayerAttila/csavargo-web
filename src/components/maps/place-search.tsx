@@ -9,7 +9,7 @@ import type { MapPoint } from "./types";
 type SearchSession = { id: string; startedAt: number; calls: number };
 type Results = { query: string; items: PlaceSuggestion[]; session: string };
 
-export function PlaceSearch({ token, onSelect }: { token: string; onSelect: (point: MapPoint) => void }) {
+export function PlaceSearch({ token, onSelect, label }: { token: string; onSelect: (point: MapPoint) => void; label?: string }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,7 +80,7 @@ export function PlaceSearch({ token, onSelect }: { token: string; onSelect: (poi
   return <div className="relative" onBlur={(event) => {
     if (!event.currentTarget.contains(event.relatedTarget)) { cancel(); setOpen(false); setBusy(false); }
   }}>
-    <Input type="search" value={query} maxLength={256} disabled={!enabled} role="combobox" aria-autocomplete="list"
+    <Input type="search" label={label} value={query} maxLength={256} disabled={!enabled} role="combobox" aria-autocomplete="list"
       aria-expanded={items.length > 0} aria-controls={listId} aria-activedescendant={items[active] ? `${listId}-${active}` : undefined}
       aria-describedby={`${listId}-hint`} onChange={(event) => change(event.target.value)}
       onFocus={() => setOpen(true)} onKeyDown={(event) => {
