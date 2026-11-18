@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { HiOutlineArrowDown, HiOutlineArrowUp, HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineMapPin, HiOutlineTrash } from "react-icons/hi2";
+import { HiOutlineChevronLeft, HiOutlineChevronRight, HiOutlineMapPin } from "react-icons/hi2";
 import { MapCanvas } from "@/components/maps/map-canvas";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import { PlaceSearch } from "@/components/maps/place-search";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
 import { notify } from "@/lib/notifications";
+import { TripDayPlaces } from "./trip-day-places";
 
 const emptyDay: MapPoint[] = [];
 const panelClass = "rounded-2xl border border-border bg-surface p-4 sm:p-5";
@@ -99,13 +100,12 @@ export function TripPlanner() {
     if (existing?.id === point.id) setCandidate(undefined);
   }
 
-  function movePlace(id: string, direction: -1 | 1) {
+  function movePlace(id: string, nextIndex: number) {
     if (activeDay === undefined) return;
     setDays((current) => {
       const currentDay = current[activeDay] ?? emptyDay;
       const index = currentDay.findIndex((place) => place.id === id);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= currentDay.length) return current;
+      if (index < 0 || nextIndex < 0 || nextIndex >= currentDay.length || index === nextIndex) return current;
       const reordered = [...currentDay];
       const [place] = reordered.splice(index, 1);
       reordered.splice(nextIndex, 0, place);
@@ -179,19 +179,8 @@ export function TripPlanner() {
       {range && <section aria-labelledby="trip-day" className={`${panelClass} lg:col-start-1 lg:row-start-3`}>
         <h2 id="trip-day" className="font-semibold">A nap programja</h2>
         {places.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">Ehhez a naphoz még nem adtál helyeket.</p>
-          : <ol aria-label={`${dayNumber}. nap helyszínei`} className="mt-3 space-y-2">
-            {places.map((place, index) => <li key={place.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-2">
-              <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand">{index + 1}</span>
-              <button type="button" aria-pressed={existing?.id === place.id}
-                className="min-w-16 flex-1 wrap-break-word rounded text-left text-sm font-medium hover:text-brand focus-visible:outline-2 focus-visible:outline-brand"
-                onClick={() => choosePlace(place)}>{place.label}</button>
-              <div className="ml-auto flex gap-1">
-                <button type="button" aria-label={`${place.label} előrébb`} className={iconButtonClass} disabled={index === 0} onClick={() => movePlace(place.id, -1)}><HiOutlineArrowUp aria-hidden="true" className="size-4" /></button>
-                <button type="button" aria-label={`${place.label} hátrébb`} className={iconButtonClass} disabled={index === places.length - 1} onClick={() => movePlace(place.id, 1)}><HiOutlineArrowDown aria-hidden="true" className="size-4" /></button>
-                <button type="button" aria-label={`${place.label} törlése`} className={iconButtonClass} onClick={() => removePlace(place)}><HiOutlineTrash aria-hidden="true" className="size-4" /></button>
-              </div>
-            </li>)}
-          </ol>}
+          : <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places} token={token}
+              onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} />}
       </section>}
     </div>
   </div>;
