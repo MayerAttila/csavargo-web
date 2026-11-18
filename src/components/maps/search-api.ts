@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { MapPoint } from "./types";
+import type { MapBounds, MapPoint } from "./types";
 import { parsePlaceInfo } from "./place-metadata";
 
 const suggestionSchema = z.object({ mapbox_id: z.string(), name: z.string(), place_formatted: z.string().optional(), full_address: z.string().optional() });
@@ -8,8 +8,18 @@ const suggestionsSchema = z.object({ suggestions: z.array(suggestionSchema) });
 const featureSchema = z.object({
   geometry: z.object({ type: z.literal("Point"), coordinates: z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]) }),
   properties: z.object({ mapbox_id: z.string(), name: z.string(), full_address: z.string().optional(), place_formatted: z.string().optional(),
+    context: z.object({ place: z.object({ name: z.string() }).optional(), locality: z.object({ name: z.string() }).optional() }).optional().catch(undefined),
     metadata: z.unknown().optional(), poi_category: z.array(z.string()).optional().catch(undefined) }),
 });
+const categoryListSchema = z.object({ listItems: z.array(z.object({ canonical_id: z.string(), name: z.string() })) });
+export type PlaceCategory = { id: string; label: string };
+
+function toMapPoint(feature: z.infer<typeof featureSchema>): MapPoint {
+  const properties = feature.properties;
+  return { id: `mapbox:${properties.mapbox_id}`, label: properties.name, coordinates: feature.geometry.coordinates,
+    address: properties.full_address ?? properties.place_formatted, locality: properties.context?.place?.name ?? properties.context?.locality?.name,
+    source: "search", info: parsePlaceInfo(properties.metadata, properties.poi_category) };
+}
 
 async function request(path: string, params: Record<string, string>, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(`https://api.mapbox.com/search/searchbox/v1/${path}?${new URLSearchParams(params)}`, { signal, cache: "no-store", credentials: "omit" });
@@ -25,8 +35,42 @@ export async function suggestPlaces(query: string, token: string, session: strin
 export async function retrievePlace(id: string, token: string, session: string, signal: AbortSignal): Promise<MapPoint> {
   const data = await request(`retrieve/${encodeURIComponent(id)}`, { access_token: token, session_token: session, language: "hu", attribute_sets: "visit,venue" }, signal);
   const feature = z.object({ features: z.array(featureSchema).min(1) }).parse(data).features[0];
-  return { id: `mapbox:${feature.properties.mapbox_id}`, label: feature.properties.name, coordinates: feature.geometry.coordinates,
-    address: feature.properties.full_address ?? feature.properties.place_formatted, source: "search", info: parsePlaceInfo(feature.properties.metadata, feature.properties.poi_category) };
+  return toMapPoint(feature);
+}
+
+export async function listPlaceCategories(token: string, signal: AbortSignal): Promise<PlaceCategory[]> {
+  const data = await request("list/category", { access_token: token, language: "hu" }, signal);
+  return categoryListSchema.parse(data).listItems.map(({ canonical_id, name }) => ({ id: canonical_id, label: name }))
+    .sort((a, b) => a.label.localeCompare(b.label, "hu"));
+}
+
+export async function searchPlaceCategory(id: string, bounds: MapBounds, token: string, signal: AbortSignal): Promise<MapPoint[]> {
+  const [west, south, east, north] = bounds;
+  const longitudeSpan = east - west;
+  if (longitudeSpan <= 0 || north <= south) return [];
+  const wrappedWest = ((west + 180) % 360 + 360) % 360 - 180;
+  const wrappedEast = wrappedWest + longitudeSpan;
+  const minLat = Math.max(-90, south);
+  const maxLat = Math.min(90, north);
+  // Mapbox accepts only bounding boxes that do not cross the antimeridian.
+  let boxes: MapBounds[];
+  if (longitudeSpan >= 360) boxes = [[-180, minLat, 180, maxLat]];
+  else if (wrappedEast > 180) {
+    boxes = [[wrappedWest, minLat, 180, maxLat], [-180, minLat, wrappedEast - 360, maxLat]];
+  } else boxes = [[wrappedWest, minLat, wrappedEast, maxLat]];
+
+  const results = await Promise.all(boxes.map(async (box) => {
+    const [left, bottom, right, top] = box;
+    const data = await request(`category/${encodeURIComponent(id)}`, {
+      access_token: token, language: "hu", bbox: box.join(","), limit: boxes.length === 1 ? "25" : "12",
+      proximity: `${(left + right) / 2},${(bottom + top) / 2}`, exclude_fields: "photos,reviews",
+    }, signal);
+    return z.object({ features: z.array(z.unknown()) }).parse(data).features.flatMap((value) => {
+      const feature = featureSchema.safeParse(value);
+      return feature.success ? [toMapPoint(feature.data)] : [];
+    });
+  }));
+  return [...new Map(results.flat().map((point) => [point.id, point])).values()];
 }
 
 export async function findSamplePlace(point: MapPoint, token: string, signal: AbortSignal): Promise<MapPoint | null> {

@@ -6,7 +6,7 @@ import { HiOutlineMap } from "react-icons/hi2";
 import { notify } from "@/lib/notifications";
 import { isPublicMapToken, mapErrorMessage, WEBGL_ERROR } from "./map-errors";
 import { pointFromMapFeature } from "./map-poi";
-import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapCameraCommand, type MapPoint, type MapView } from "./types";
+import { BUDAPEST_VIEW, type Coordinates, type MapBasemap, type MapBounds, type MapCameraCommand, type MapPoint, type MapView } from "./types";
 
 export type MapCanvasProps = {
   points: MapPoint[];
@@ -14,6 +14,10 @@ export type MapCanvasProps = {
   onSelect: (id: string) => void;
   onMapClick?: (coordinates: Coordinates) => void;
   onPlaceSelect?: (point: MapPoint) => void;
+  onViewportChange?: (bounds: MapBounds | undefined) => void;
+  discoveryPoints?: MapPoint[];
+  selectedDiscoveryId?: string;
+  hideBasemapPlaces?: boolean;
   initialView?: MapView;
   basemap?: MapBasemap;
   cameraCommand?: MapCameraCommand;
@@ -23,17 +27,18 @@ export type MapCanvasProps = {
 };
 const styles = { standard: "mapbox://styles/mapbox/standard", satellite: "mapbox://styles/mapbox/satellite-streets-v12" };
 
-export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSelect, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
+export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSelect, onViewportChange, discoveryPoints, selectedDiscoveryId, hideBasemapPlaces = false, initialView = BUDAPEST_VIEW, basemap = "standard", cameraCommand,
   className = "", token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "", missingTokenHint }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapboxMap | null>(null);
+  const engine = useRef<typeof import("mapbox-gl").default | null>(null);
   const appliedBasemap = useRef<MapBasemap | null>(null);
   const markerEntries = useRef<{ marker: Marker; dispose: () => void }[]>([]);
   const { resolvedTheme } = useTheme();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
-  const latest = useRef({ onSelect, onMapClick, onPlaceSelect, initialView, basemap, dark: resolvedTheme === "dark" });
-  useEffect(() => { latest.current = { onSelect, onMapClick, onPlaceSelect, initialView, basemap, dark: resolvedTheme === "dark" }; });
+  const latest = useRef({ onSelect, onMapClick, onPlaceSelect, onViewportChange, hideBasemapPlaces, initialView, basemap, dark: resolvedTheme === "dark" });
+  useEffect(() => { latest.current = { onSelect, onMapClick, onPlaceSelect, onViewportChange, hideBasemapPlaces, initialView, basemap, dark: resolvedTheme === "dark" }; });
 
   useEffect(() => {
     if (!isPublicMapToken(token)) return;
@@ -43,6 +48,7 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
     const disposers: (() => void)[] = [];
     void (async () => {
       setStatus("loading");
+      latest.current.onViewportChange?.(undefined);
       try {
         const { default: mapbox } = await import("mapbox-gl");
         if (cancelled || !container.current) return;
@@ -51,14 +57,15 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
         instance = new mapbox.Map({ container: container.current, accessToken: token, style: styles[props.basemap],
           center: props.initialView.center, zoom: props.initialView.zoom, pitch: 0, maxPitch: 0, bearing: 0,
           dragRotate: false, pitchWithRotate: false, touchPitch: false,
-          config: props.basemap === "standard" ? { basemap: { show3dObjects: false, lightPreset: props.dark ? "night" : "day" } } : undefined,
+          config: props.basemap === "standard" ? { basemap: { show3dObjects: false, lightPreset: props.dark ? "night" : "day", showPointOfInterestLabels: !props.hideBasemapPlaces } } : undefined,
           locale: { "NavigationControl.ZoomIn": "Nagyítás", "NavigationControl.ZoomOut": "Kicsinyítés", "AttributionControl.ToggleAttribution": "Források megjelenítése" } });
         map.current = instance;
+        engine.current = mapbox;
         appliedBasemap.current = props.basemap;
         instance.touchZoomRotate.disableRotation();
         instance.addControl(new mapbox.NavigationControl({ showCompass: false }), "top-right");
         const poiAt = (event: MapMouseEvent): MapPoint | null => {
-          if (!instance?.isStyleLoaded()) return null;
+          if (!instance?.isStyleLoaded() || latest.current.hideBasemapPlaces) return null;
           const features = latest.current.basemap === "standard"
             ? instance.queryRenderedFeatures(event.point, { target: { featuresetId: "poi", importId: "basemap" } })
             : instance.queryRenderedFeatures(event.point, { layers: instance.getStyle().layers
@@ -74,25 +81,40 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
         };
         const hover = (event: MapMouseEvent) => { if (instance) instance.getCanvas().style.cursor = poiAt(event) ? "pointer" : ""; };
         const leave = () => { if (instance) instance.getCanvas().style.cursor = ""; };
-        const ready = () => { if (!cancelled) setStatus("ready"); };
+        const reportViewport = () => {
+          const notifyViewport = latest.current.onViewportChange;
+          if (!notifyViewport || cancelled) return;
+          const bounds = instance?.getBounds();
+          if (bounds) notifyViewport([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]);
+        };
+        const ready = () => { if (!cancelled) { setStatus("ready"); reportViewport(); } };
         const configure = () => {
           if (latest.current.basemap === "standard") {
             instance?.setConfigProperty("basemap", "show3dObjects", false);
             instance?.setConfigProperty("basemap", "lightPreset", latest.current.dark ? "night" : "day");
+            instance?.setConfigProperty("basemap", "showPointOfInterestLabels", !latest.current.hideBasemapPlaces);
           }
         };
         const error = (event: ErrorEvent) => {
           if (cancelled) return;
           notify.error(mapErrorMessage(event.error), { id: "map-canvas" });
           setStatus("error");
+          latest.current.onViewportChange?.(undefined);
         };
         instance.on("click", click); instance.on("load", ready); instance.on("error", error); instance.on("style.load", configure);
         instance.on("mousemove", hover); instance.on("mouseout", leave);
+        instance.on("moveend", reportViewport);
+        disposers.push(() => { instance?.off("moveend", reportViewport); });
         disposers.push(() => { instance?.off("mousemove", hover); instance?.off("mouseout", leave); });
         disposers.push(() => { instance?.off("click", click); instance?.off("load", ready); instance?.off("error", error); instance?.off("style.load", configure); });
         observer = new ResizeObserver(() => instance?.resize()); observer.observe(container.current);
         const canvas = instance.getCanvas();
-        const lost = (event: Event) => { event.preventDefault(); notify.error(WEBGL_ERROR, { id: "map-canvas" }); setStatus("error"); };
+        const lost = (event: Event) => {
+          event.preventDefault();
+          notify.error(WEBGL_ERROR, { id: "map-canvas" });
+          setStatus("error");
+          latest.current.onViewportChange?.(undefined);
+        };
         canvas.addEventListener("webglcontextlost", lost);
         disposers.push(() => canvas.removeEventListener("webglcontextlost", lost));
       } catch {
@@ -102,31 +124,45 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
     return () => {
       cancelled = true; observer?.disconnect(); disposers.forEach((dispose) => dispose());
       markerEntries.current.forEach(({ marker, dispose }) => { dispose(); marker.remove(); }); markerEntries.current = [];
-      instance?.remove(); map.current = null;
+      instance?.remove(); map.current = null; engine.current = null;
     };
   }, [token, attempt]);
 
   useEffect(() => {
     const instance = map.current;
-    if (!instance || status !== "ready") return;
-    let cancelled = false;
-    void import("mapbox-gl").then(({ default: mapbox }) => {
-      if (cancelled) return;
-      markerEntries.current.forEach(({ marker, dispose }) => { dispose(); marker.remove(); });
-      markerEntries.current = points.map((point, index) => {
-        const button = document.createElement("button");
-        button.type = "button"; button.setAttribute("aria-label", `Hely kiválasztása: ${point.label}`);
-        button.setAttribute("aria-pressed", String(point.id === selectedId)); button.title = point.label;
-        button.textContent = String(index + 1);
-        button.className = `flex size-9 items-center justify-center rounded-full border-2 border-white text-sm font-bold shadow-lg outline-offset-4 focus-visible:outline-2 focus-visible:outline-brand motion-safe:transition-colors ${point.id === selectedId ? "bg-brand text-white ring-4 ring-brand/30" : "bg-surface text-foreground"}`;
-        const click = (event: MouseEvent) => { event.stopPropagation(); latest.current.onSelect(point.id); };
-        button.addEventListener("click", click);
-        const marker = new mapbox.Marker({ element: button }).setLngLat(point.coordinates).addTo(instance);
-        return { marker, dispose: () => button.removeEventListener("click", click) };
-      });
+    const mapbox = engine.current;
+    if (!instance || !mapbox || status !== "ready") return;
+    markerEntries.current.forEach(({ marker, dispose }) => { dispose(); marker.remove(); });
+    markerEntries.current = points.map((point, index) => {
+      const button = document.createElement("button");
+      button.type = "button"; button.setAttribute("aria-label", `Hely kiválasztása: ${point.label}`);
+      button.setAttribute("aria-pressed", String(point.id === selectedId)); button.title = point.label;
+      button.textContent = String(index + 1);
+      button.className = `flex size-9 items-center justify-center rounded-full border-2 border-white text-sm font-bold shadow-lg outline-offset-4 focus-visible:outline-2 focus-visible:outline-brand motion-safe:transition-colors ${point.id === selectedId ? "bg-brand text-white ring-4 ring-brand/30" : "bg-surface text-foreground"}`;
+      const click = (event: MouseEvent) => { event.stopPropagation(); latest.current.onSelect(point.id); };
+      button.addEventListener("click", click);
+      const marker = new mapbox.Marker({ element: button }).setLngLat(point.coordinates).addTo(instance);
+      return { marker, dispose: () => button.removeEventListener("click", click) };
     });
-    return () => { cancelled = true; };
   }, [points, selectedId, status, attempt]);
+
+  useEffect(() => {
+    const instance = map.current;
+    const mapbox = engine.current;
+    if (!instance || !mapbox || status !== "ready" || !discoveryPoints?.length) return;
+    const markers = discoveryPoints.map((point) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.title = point.label;
+      button.setAttribute("aria-label", `Találat kiválasztása: ${point.label}`);
+      button.setAttribute("aria-pressed", String(point.id === selectedDiscoveryId));
+      button.className = `grid size-7 place-items-center rounded-full border-2 border-white bg-action text-white shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${point.id === selectedDiscoveryId ? "ring-4 ring-brand/45" : ""}`;
+      button.textContent = "•";
+      button.onclick = (event) => { event.stopPropagation(); latest.current.onPlaceSelect?.(point); };
+      return new mapbox.Marker({ element: button }).setLngLat(point.coordinates).addTo(instance);
+    });
+    return () => markers.forEach((marker) => marker.remove());
+  }, [discoveryPoints, selectedDiscoveryId, status, attempt]);
 
   useEffect(() => {
     const instance = map.current;
@@ -136,10 +172,17 @@ export function MapCanvas({ points, selectedId, onSelect, onMapClick, onPlaceSel
   }, [basemap, status]);
 
   useEffect(() => {
-    if (map.current?.isStyleLoaded() && basemap === "standard" && status === "ready") {
-      map.current.setConfigProperty("basemap", "lightPreset", resolvedTheme === "dark" ? "night" : "day");
-    }
-  }, [resolvedTheme, basemap, status]);
+    const instance = map.current;
+    if (!instance || basemap !== "standard" || status !== "ready") return;
+    const update = () => {
+      instance.off("idle", update);
+      instance.setConfigProperty("basemap", "lightPreset", resolvedTheme === "dark" ? "night" : "day");
+      instance.setConfigProperty("basemap", "showPointOfInterestLabels", !hideBasemapPlaces);
+    };
+    if (instance.isStyleLoaded()) update();
+    else instance.on("idle", update);
+    return () => { instance.off("idle", update); };
+  }, [resolvedTheme, basemap, status, hideBasemapPlaces]);
 
   useEffect(() => {
     const instance = map.current;

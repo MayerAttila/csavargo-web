@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TripPlanner } from "@/components/trips/trip-planner";
 import type { MapCanvasProps } from "@/components/maps/map-canvas";
 import type { MapPoint } from "@/components/maps/types";
 import { notify } from "@/lib/notifications";
-import { findSamplePlace } from "@/components/maps/search-api";
+import { findSamplePlace, listPlaceCategories, searchPlaceCategory } from "@/components/maps/search-api";
 
 const pecs: MapPoint = { id: "pecs", label: "Pécs", coordinates: [18.23, 46.07] };
 const budapest: MapPoint = { id: "budapest", label: "Budapest", coordinates: [19.04, 47.49] };
@@ -22,18 +22,20 @@ vi.mock("@/components/maps/place-search", () => ({
 }));
 
 vi.mock("@/components/maps/map-canvas", () => ({
-  MapCanvas: ({ cameraCommand, onPlaceSelect, onSelect, points }: MapCanvasProps) => (
+  MapCanvas: ({ cameraCommand, onPlaceSelect, onSelect, onViewportChange, points, discoveryPoints }: MapCanvasProps) => (
     <section aria-label="Teszt térkép">
       <output aria-label="Térképnézet">{JSON.stringify(cameraCommand)}</output>
+      <button type="button" onClick={() => onViewportChange?.([18, 46, 19, 47])}>Térképterület megadása</button>
       <button type="button" disabled={!onPlaceSelect} onClick={() => onPlaceSelect?.(gallery)}>Zsolnay jelölő</button>
       <button type="button" disabled={!onPlaceSelect} onClick={() => onPlaceSelect?.({ ...square, id: "poi:square" })}>Széchenyi jelölő</button>
       {points.map((point) => <button type="button" key={point.id} onClick={() => onSelect(point.id)}>Tervezett: {point.label}</button>)}
+      {discoveryPoints?.map((point) => <button type="button" key={point.id} onClick={() => onPlaceSelect?.(point)}>Találat: {point.label}</button>)}
     </section>
   ),
 }));
 
 vi.mock("@/lib/notifications", () => ({ notify: { error: vi.fn() } }));
-vi.mock("@/components/maps/search-api", () => ({ findSamplePlace: vi.fn() }));
+vi.mock("@/components/maps/search-api", () => ({ findSamplePlace: vi.fn(), searchPlaceCategory: vi.fn(), listPlaceCategories: vi.fn() }));
 
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllEnvs(); });
 
@@ -49,6 +51,37 @@ async function setDates(user: ReturnType<typeof userEvent.setup>, start: string,
 }
 
 describe("V25: kirándulástervező", () => {
+  it("searches the visible map when a category is selected, cancels stale results, and keeps the itinerary", async () => {
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
+    let finishOld!: (points: MapPoint[]) => void;
+    vi.mocked(searchPlaceCategory).mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; }))
+      .mockResolvedValue([square, gallery]);
+    vi.mocked(listPlaceCategories).mockResolvedValue([{ id: "parking_lot", label: "Parkoló" }]);
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await user.click(button("Pécs"));
+    await setDates(user, "2026-11-18", "2026-11-18");
+    await user.click(button("Térképterület megadása"));
+    await user.click(button("Széchenyi tér"));
+    await user.click(button("Hozzáadás ehhez a naphoz"));
+
+    await user.click(button("Múzeumok"));
+    await waitFor(() => expect(searchPlaceCategory).toHaveBeenCalledWith("museum", [18, 46, 19, 47], "pk.test", expect.any(AbortSignal)));
+    const oldSignal = vi.mocked(searchPlaceCategory).mock.calls[0][3];
+    await user.click(button("Továbbiak"));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Kategória" }), "parking_lot");
+    expect(oldSignal.aborted).toBe(true);
+    expect(await screen.findByRole("button", { name: "Találat: Zsolnay Negyed" })).toBeVisible();
+    await act(async () => finishOld([{ ...gallery, id: "stale", label: "Régi találat" }]));
+    expect(screen.queryByRole("button", { name: "Találat: Régi találat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Találat: Széchenyi tér" })).not.toBeInTheDocument();
+    expect(button("Tervezett: Széchenyi tér")).toBeVisible();
+    await user.click(button("Találat: Zsolnay Negyed"));
+    await user.click(button("Hozzáadás ehhez a naphoz"));
+    expect(dayList(1)).toHaveTextContent("Zsolnay Negyed");
+    await user.click(button("Összes"));
+    expect(button("Tervezett: Zsolnay Negyed")).toBeVisible();
+  });
   it("adds search and map picks explicitly, prevents same-day duplicates, and keeps each day ordered independently", async () => {
     const user = userEvent.setup();
     render(<TripPlanner />);
@@ -175,17 +208,20 @@ describe("V25: kirándulástervező", () => {
     fireEvent.pointerUp(handle, { ...pointer, clientY: 15 });
     expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent("Zsolnay Negyed");
     expect(within(screen.getByRole("region", { name: "Teszt térkép" })).getAllByRole("button", { name: /^Tervezett/ })[0]).toHaveTextContent("Zsolnay Negyed");
-    expect(findSamplePlace).not.toHaveBeenCalled();
+    const preview = screen.getByRole("region", { name: "Kiválasztott hely" });
+    expect(await within(preview).findByText("4,8", { exact: true })).toBeVisible();
+    expect(preview).toHaveTextContent("Pécs, Zsolnay Vilmos utca");
+    expect(findSamplePlace).toHaveBeenCalledTimes(1);
 
     await user.click(button("Zsolnay Negyed"));
-    const details = screen.getByRole("region", { name: "Zsolnay Negyed adatai" });
-    expect(await within(details).findByText("4,8 / 5")).toBeVisible();
+    const details = within(list).getByRole("region", { name: "Zsolnay Negyed adatai" });
+    expect(button("Zsolnay Negyed")).toHaveAccessibleDescription(/4,8/);
     expect(details).toHaveTextContent("Pécs, Zsolnay Vilmos utca");
     await user.click(button("Zsolnay Negyed"));
     expect(details).not.toBeInTheDocument();
     await user.click(button("Zsolnay Negyed"));
     expect(findSamplePlace).toHaveBeenCalledTimes(1);
     await user.click(within(list).getByRole("button", { name: "Széchenyi tér", exact: true }));
-    expect(screen.getByRole("region", { name: "Széchenyi tér adatai" })).toHaveTextContent("4,5 / 5");
+    expect(within(list).getByRole("button", { name: "Széchenyi tér", exact: true })).toHaveAccessibleDescription(/4,5/);
   });
 });

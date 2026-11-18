@@ -1,10 +1,27 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { parsePlaceInfo, formatOpeningHours } from "@/components/maps/place-metadata";
+import { parsePlaceInfo, formatOpeningHours, formatOpeningHoursForDay } from "@/components/maps/place-metadata";
 import { PlaceInfoPanel } from "@/components/maps/place-info";
 import { findSamplePlace } from "@/components/maps/search-api";
 
 describe("place information", () => {
+  it("shows today's intervals and keeps the weekly schedule collapsed", () => {
+    vi.setSystemTime(new Date(2026, 10, 17, 12));
+    try {
+      const openingHours = [
+        { open: { day: 1, time: "1800" }, close: { day: 2, time: "0200" } },
+        { open: { day: 2, time: "0900" }, close: { day: 2, time: "1700" } },
+      ];
+      render(<PlaceInfoPanel layout="grid" point={{ id: "p", label: "Hely", coordinates: [19, 47], info: { openingHours } }} onRetry={vi.fn()} />);
+      const today = screen.getByText("Ma:").closest("summary")!;
+      expect(today).toHaveTextContent("Ma: 00:00–02:00, 09:00–17:00");
+      expect(today.parentElement).not.toHaveAttribute("open");
+      fireEvent.click(today);
+      expect(today.parentElement).toHaveAttribute("open");
+      expect(formatOpeningHoursForDay(openingHours, 3)).toBe("Zárva");
+      expect(formatOpeningHoursForDay([{ open: { day: 0, time: "0000" } }], 3)).toBe("0–24");
+    } finally { vi.useRealTimers(); }
+  });
   it("maps supplied metadata and formats split/overnight opening hours in Hungarian", () => {
     const info = parsePlaceInfo({ rating: 4.61, price_level: "$$", website: "https://example.com", phone: "+3611234567", open_hours: { periods: [
       { open: { day: 1, time: "0800" }, close: { day: 1, time: "1200" } },
@@ -13,7 +30,7 @@ describe("place information", () => {
     render(<PlaceInfoPanel point={{ id: "p", label: "Étterem", coordinates: [19, 47], info }} onRetry={vi.fn()} />);
     expect(screen.getByText("4,61 / 5")).toBeInTheDocument(); expect(screen.getByText("$$")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Nyitvatartás"));
-    expect(screen.getByText("08:00–12:00, 14:00–02:00 (következő nap)")).toBeInTheDocument();
+    expect(screen.getByText("08:00–12:00, 14:00–02:00")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Hivatalos weboldal" })).toHaveAttribute("href", "https://example.com");
   });
   it("does not invent missing/invalid data or expose unsafe website links", () => {

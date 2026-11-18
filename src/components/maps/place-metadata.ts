@@ -18,8 +18,25 @@ export function parsePlaceInfo(metadata: unknown, categories?: string[]): PlaceI
 
 const days = ["Vasárnap", "Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat"];
 const time = (value: string) => `${value.slice(0, 2)}:${value.slice(2)}`;
+const isAlwaysOpen = (periods: OpeningPeriod[]) =>
+  periods.length === 1 && periods[0].open.day === 0 && periods[0].open.time === "0000" && !periods[0].close;
+
+export function formatOpeningHoursForDay(periods: OpeningPeriod[], day: number) {
+  if (isAlwaysOpen(periods)) return "0–24";
+  return periods.flatMap(({ open, close }) => {
+    if (!close) return open.day === day ? [`${time(open.time)}–nincs zárási adat`] : [];
+    const dayOffset = (day - open.day + 7) % 7;
+    const endOffset = (close.day - open.day + 7) % 7;
+    if (dayOffset > endOffset || (dayOffset > 0 && dayOffset === endOffset && close.time === "0000")) return [];
+
+    const start = dayOffset === 0 ? time(open.time) : "00:00";
+    const end = dayOffset === endOffset ? time(close.time) : "24:00";
+    return [`${start}–${end}`];
+  }).sort().join(", ") || "Zárva";
+}
+
 export function formatOpeningHours(periods: OpeningPeriod[]) {
-  const alwaysOpen = periods.length === 1 && periods[0].open.day === 0 && periods[0].open.time === "0000" && !periods[0].close;
+  const alwaysOpen = isAlwaysOpen(periods);
   return [1, 2, 3, 4, 5, 6, 0].map((day) => ({ day: days[day], hours: alwaysOpen ? "0–24" : periods.filter((period) => period.open.day === day).map((period) =>
-    period.close ? `${time(period.open.time)}–${time(period.close.time)}${period.close.day !== day ? " (következő nap)" : ""}` : `${time(period.open.time)}–nincs zárási adat`).join(", ") || "Zárva" }));
+    period.close ? `${time(period.open.time)}–${time(period.close.time)}` : `${time(period.open.time)}–nincs zárási adat`).join(", ") || "Zárva" }));
 }

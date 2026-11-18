@@ -1,18 +1,25 @@
-import { useState, type Ref } from "react";
-import { HiOutlineCheck, HiOutlineListBullet, HiOutlineMap, HiOutlineMapPin, HiOutlinePlus, HiOutlineStar } from "react-icons/hi2";
+import { useCallback, useMemo, useState } from "react";
+import { HiOutlineCheck, HiOutlineListBullet, HiOutlineMap, HiOutlineMapPin, HiOutlinePlus } from "react-icons/hi2";
 import { MapCanvas } from "@/components/maps/map-canvas";
+import { isPublicMapToken } from "@/components/maps/map-errors";
+import { sameMapPlace } from "@/components/maps/map-poi";
+import { PlaceInfoPanel } from "@/components/maps/place-info";
 import { PlaceSearch } from "@/components/maps/place-search";
-import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
+import type { PlaceCategory } from "@/components/maps/search-api";
+import type { MapBounds, MapCameraCommand, MapPoint } from "@/components/maps/types";
+import { TripCategoryFilters } from "./trip-category-filters";
+import { TripPlaceSummary } from "./trip-place-summary";
+import { useTripCategoryPlaces } from "./use-trip-category-places";
+import type { TripPlaceInfo } from "./use-trip-place-info";
 
 type Props = {
   token: string;
   activeDay?: number;
   canPlan: boolean;
   points: MapPoint[];
-  candidate?: MapPoint;
+  candidate?: TripPlaceInfo;
   selectedId?: string;
   camera?: MapCameraCommand;
-  searchRef: Ref<HTMLInputElement>;
   onSelect: (point: MapPoint) => void;
   onAdd: () => void;
 };
@@ -21,10 +28,20 @@ const views = [
   { id: "map", label: "Térkép", Icon: HiOutlineMap },
   { id: "list", label: "Lista nézet", Icon: HiOutlineListBullet },
 ] as const;
-const ratingFormat = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 2 });
 
-export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidate, selectedId, camera, searchRef, onSelect, onAdd }: Props) {
+export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidate, selectedId, camera, onSelect, onAdd }: Props) {
   const [view, setView] = useState<"map" | "list">("map");
+  const [category, setCategory] = useState<PlaceCategory | null>(null);
+  const [bounds, setBounds] = useState<MapBounds>();
+  const showFilters = view === "map" && canPlan && isPublicMapToken(token);
+  const categoryId = showFilters ? category?.id : undefined;
+  const { current: results, retry } = useTripCategoryPlaces(categoryId, bounds, token);
+  const resultCount = results?.points?.length;
+  const discoveryPoints = useMemo(() => results?.points?.filter((result) =>
+    !points.some((point) => sameMapPlace(result, point))), [results, points]);
+  const updateBounds = useCallback((next: MapBounds | undefined) => {
+    setBounds((current) => next && current?.every((value, index) => value === next[index]) ? current : next);
+  }, []);
 
   return <section aria-label="Helyek kiválasztása" className="min-w-0 space-y-3 rounded-2xl border border-border/80 bg-surface p-3 shadow-sm sm:p-4">
     <div className="flex flex-wrap items-start gap-3">
@@ -35,16 +52,25 @@ export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidat
         </button>)}
       </div>
       {canPlan ? <div className="min-w-0 flex-[1_1_15rem]">
-        <PlaceSearch key={activeDay} token={token} onSelect={onSelect} label="Látnivaló keresése" inputRef={searchRef} />
+        <PlaceSearch key={activeDay} token={token} onSelect={onSelect} label="Látnivaló keresése" />
       </div> : <p className="flex min-h-10 flex-1 basis-40 items-center text-sm text-muted-foreground">Válassz úti célt és időszakot a látnivalók hozzáadásához.</p>}
     </div>
+    {showFilters && <TripCategoryFilters token={token} selected={category} onSelect={setCategory} />}
     <div hidden={view !== "map"}>
       <MapCanvas token={token} points={points} selectedId={selectedId} cameraCommand={camera}
         onSelect={(id) => { const point = points.find((item) => item.id === id); if (point) onSelect(point); }}
         onPlaceSelect={canPlan ? onSelect : undefined}
+        onViewportChange={updateBounds} discoveryPoints={discoveryPoints} selectedDiscoveryId={candidate?.point.id}
+        hideBasemapPlaces={Boolean(categoryId)}
         missingTokenHint="Az úti cél és a látnivalók kereséséhez be kell állítani a térképszolgáltatást."
         className="h-[46svh] min-h-72 lg:h-[clamp(24rem,55svh,44rem)]" />
     </div>
+    {categoryId && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <p role="status">{!bounds ? "A kategóriakereséshez be kell töltődnie a térképnek."
+        : results?.error ?? (resultCount === undefined ? "Közeli helyek keresése…"
+          : resultCount ? `${resultCount} találat a térképen` : "Nincs találat ezen a térképterületen.")}</p>
+      {results?.error && <button type="button" className="rounded px-1 font-semibold text-brand focus-visible:outline-2" onClick={retry}>Újrapróbálás</button>}
+    </div>}
     {view === "list" && <section aria-label="A nap helyei" className="min-h-72 space-y-3 rounded-xl border border-border/70 bg-background/55 p-4">
       <h2 className="text-sm font-semibold">A nap helyei</h2>
       {points.length ? <ol className="grid gap-2 xl:grid-cols-2">
@@ -60,23 +86,22 @@ export function TripPlaceWorkspace({ token, activeDay, canPlan, points, candidat
         </li>)}
       </ol> : <p className="text-sm text-muted-foreground">A kiválasztott naphoz még nincs hozzáadott hely.</p>}
     </section>}
-    {candidate && <section aria-label="Kiválasztott hely" className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-surface-alt/50 p-3 sm:p-4">
-      <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-xl border border-brand/20 bg-brand/12 text-brand">
-        <HiOutlineMapPin className="size-6" />
-      </span>
-      <div className="min-w-0 flex-[1_1_10rem]">
-        <h2 className="wrap-break-word text-base font-semibold tracking-tight">{candidate.label}</h2>
-        {candidate.address && <p className="mt-0.5 wrap-break-word text-sm text-muted-foreground">{candidate.address}</p>}
-        {candidate.info?.rating !== undefined && <p className="mt-1 flex items-center gap-1.5 text-xs font-medium">
-          <HiOutlineStar aria-hidden="true" className="size-4 text-amber-500" />
-          {ratingFormat.format(candidate.info.rating)} / 5
-        </p>}
+    {candidate && <section aria-label="Kiválasztott hely" className="space-y-3 rounded-xl border border-border/80 bg-surface-alt/50 p-3 sm:p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-xl border border-brand/20 bg-brand/12 text-brand">
+          <HiOutlineMapPin className="size-6" />
+        </span>
+        <div className="min-w-0 flex-[1_1_10rem]">
+          <h2 className="wrap-break-word text-base font-semibold tracking-tight">{candidate.point.label}</h2>
+          <TripPlaceSummary point={candidate.point} />
+        </div>
+        <button type="button" onClick={onAdd} disabled={Boolean(selectedId)}
+          className="flex min-h-10 items-center gap-1.5 rounded-xl bg-action px-3 text-xs font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:bg-surface-alt disabled:text-muted-foreground">
+          {selectedId ? <><HiOutlineCheck aria-hidden="true" className="size-4" /> A napi programban szerepel</>
+            : <><HiOutlinePlus aria-hidden="true" className="size-4" /> Hozzáadás ehhez a naphoz</>}
+        </button>
       </div>
-      <button type="button" onClick={onAdd} disabled={Boolean(selectedId)}
-        className="flex min-h-10 items-center gap-1.5 rounded-xl bg-action px-3 text-xs font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:bg-surface-alt disabled:text-muted-foreground">
-        {selectedId ? <><HiOutlineCheck aria-hidden="true" className="size-4" /> A napi programban szerepel</>
-          : <><HiOutlinePlus aria-hidden="true" className="size-4" /> Hozzáadás ehhez a naphoz</>}
-      </button>
+      <PlaceInfoPanel {...candidate} layout="grid" className="border-t border-border/70 pt-3" />
     </section>}
   </section>;
 }

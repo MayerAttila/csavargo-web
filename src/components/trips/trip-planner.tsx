@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { isPublicMapToken } from "@/components/maps/map-errors";
+import { useState, type FormEvent } from "react";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
 import { notify } from "@/lib/notifications";
@@ -9,6 +8,7 @@ import { calendarDay, dateInputValue, type TripDateInputs, type TripDateRange } 
 import { TripAgenda } from "./trip-agenda";
 import { TripPlaceWorkspace } from "./trip-place-workspace";
 import { TripSettings } from "./trip-settings";
+import { useTripPlaceInfo } from "./use-trip-place-info";
 
 const emptyDay: MapPoint[] = [];
 
@@ -20,11 +20,11 @@ export function TripPlanner() {
   const [activeDay, setActiveDay] = useState<number>();
   const [days, setDays] = useState<Partial<Record<number, MapPoint[]>>>({});
   const [candidate, setCandidate] = useState<MapPoint>();
+  const getPlaceInfo = useTripPlaceInfo(candidate, token);
   const [camera, setCamera] = useState<MapCameraCommand>();
   const places = activeDay === undefined ? emptyDay : days[activeDay] ?? emptyDay;
   const existing = candidate ? places.find((place) => sameMapPlace(place, candidate)) : undefined;
   const canPlan = Boolean(destination && range);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   function chooseDestination(point: MapPoint) {
     setDestination(point);
@@ -110,13 +110,12 @@ export function TripPlanner() {
       <div className="grid min-w-0 gap-4">
         <TripSettings token={token} destination={destination} dates={dateInputs}
           onDestination={chooseDestination} onDates={setDateInputs} onApplyRange={applyDateRange} />
-        <TripAgenda token={token} range={range} activeDay={activeDay} places={places}
-          canAdd={canPlan && isPublicMapToken(token)} onDay={chooseDay} onFind={() => searchRef.current?.focus()}
-          onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} />
+        <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay}
+          onSelect={choosePlace} onRemove={removePlace} onMove={movePlace} getPlaceInfo={getPlaceInfo} />
       </div>
 
       <TripPlaceWorkspace token={token} activeDay={activeDay} canPlan={canPlan} points={places}
-        candidate={candidate} selectedId={existing?.id} camera={camera} searchRef={searchRef}
+        candidate={candidate ? getPlaceInfo(candidate) : undefined} selectedId={existing?.id} camera={camera}
         onSelect={choosePlace} onAdd={addPlace} />
     </div>
   </div>;

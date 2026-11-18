@@ -1,22 +1,21 @@
-import { HiOutlineCalendarDays, HiOutlinePlus } from "react-icons/hi2";
+import { HiOutlineCalendarDays } from "react-icons/hi2";
 import type { MapPoint } from "@/components/maps/types";
 import { TripDayPlaces } from "./trip-day-places";
 import { calendarDay, dateInputValue, tripDateLabel, type TripDateRange } from "./trip-calendar";
+import type { GetTripPlaceInfo } from "./use-trip-place-info";
 
 type Props = {
-  token: string;
   range?: TripDateRange;
   activeDay?: number;
   places: MapPoint[];
-  canAdd: boolean;
   onDay: (day: number) => void;
-  onFind: () => void;
   onSelect: (place: MapPoint) => void;
   onRemove: (place: MapPoint) => void;
   onMove: (id: string, index: number) => void;
+  getPlaceInfo: GetTripPlaceInfo;
 };
 
-export function TripAgenda({ token, range, activeDay, places, canAdd, onDay, onFind, onSelect, onRemove, onMove }: Props) {
+export function TripAgenda({ range, activeDay, places, onDay, onSelect, onRemove, onMove, getPlaceInfo }: Props) {
   const dayCount = range ? range.end - range.start + 1 : 0;
   const dayNumber = range && activeDay !== undefined ? activeDay - range.start + 1 : 0;
   const useCalendar = dayCount > 31;
@@ -50,20 +49,9 @@ export function TripAgenda({ token, range, activeDay, places, canAdd, onDay, onF
           </div>}
         </div>
         <div className="min-w-0 rounded-xl border border-border/70 bg-surface-alt/35 p-2.5 sm:p-3">
-          <div className="flex flex-wrap items-start justify-between gap-1.5">
-            <div>
-              <h3 className="text-sm font-semibold">{dayNumber}. nap</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">{tripDateLabel(activeDay)}</p>
-            </div>
-            <span className="rounded-lg bg-surface-alt px-2 py-1 text-xs font-medium text-muted-foreground whitespace-nowrap">{places.length} program</span>
-          </div>
-          {places.length ? <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places} token={token}
-            onSelect={onSelect} onRemove={onRemove} onMove={onMove} />
-            : <p className="my-3 text-sm text-muted-foreground">Ehhez a naphoz még nem adtál helyeket.</p>}
-          <button type="button" disabled={!canAdd} onClick={onFind}
-            className="mt-3 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-brand/70 bg-brand/8 px-2 text-center text-xs font-semibold text-foreground hover:bg-brand/15 focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50">
-            <HiOutlinePlus aria-hidden="true" className="size-4 shrink-0" /> Program hozzáadása
-          </button>
+          {places.length ? <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places}
+            onSelect={onSelect} onRemove={onRemove} onMove={onMove} getPlaceInfo={getPlaceInfo} />
+            : <p className="text-sm text-muted-foreground">Válassz egy helyet a térképen vagy a keresőből, majd add hozzá ehhez a naphoz.</p>}
         </div>
       </div>
     ) : <p className="rounded-xl bg-surface-alt/40 p-3 text-sm text-muted-foreground">Állítsd be az utazás időszakát a napi programhoz.</p>}

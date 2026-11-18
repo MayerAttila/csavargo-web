@@ -69,7 +69,7 @@ export function SortableTripPlaces({ dayNumber, places, onMove, renderPlace }: P
   return <>
     {places.length > 1 && <p id={instructions} className="sr-only">A helyet a sorszámánál fogva húzhatod. Billentyűzettel az Enter vagy a szóköz felveszi és leteszi, a nyilak mozgatják, az Escape megszakítja.</p>}
     <p aria-live="polite" className="sr-only">{drag?.mode === "keyboard" ? `Célpozíció: ${drag.target + 1} / ${places.length}` : ""}</p>
-    <ol ref={list} aria-label={`${dayNumber}. nap helyszínei`} className="mt-3 space-y-2">
+    <ol ref={list} aria-label={`${dayNumber}. nap helyszínei`} className="space-y-2">
       {places.map((place, index) => {
         const insertion = drag?.target === index && index !== dragIndex;
         const orderBadge = places.length > 1 ? (

@@ -14,6 +14,7 @@ class FakeMap {
   off(name: string, handler: (event?: unknown) => void) { this.events.get(name)?.delete(handler); }
   emit(name: string, event?: unknown) { this.events.get(name)?.forEach((handler) => handler(event)); }
   getCanvas() { return this.canvas; }
+  getBounds = vi.fn(() => ({ getWest: () => 18, getSouth: () => 46, getEast: () => 20, getNorth: () => 48 }));
   queryRenderedFeatures = vi.fn().mockReturnValue([]);
   getStyle = () => ({ layers: [{ id: "poi-label", type: "symbol", "source-layer": "poi_label" }, { id: "road-label", type: "symbol", "source-layer": "road" }] });
 }
@@ -43,6 +44,27 @@ async function loaded() {
   return mock.instances.at(-1)!;
 }
 describe("V19/V21: reusable MapCanvas", () => {
+  it("reports the settled viewport and keeps discovery markers separate from numbered stops", async () => {
+    const onViewportChange = vi.fn();
+    const onPlaceSelect = vi.fn();
+    const discovery = { id: "museum", label: "Múzeum", coordinates: [19, 47] } satisfies MapPoint;
+    const { rerender, unmount } = render(<MapCanvas token="pk.test" points={points} onSelect={vi.fn()}
+      onPlaceSelect={onPlaceSelect} onViewportChange={onViewportChange} discoveryPoints={[discovery]} hideBasemapPlaces />);
+    const map = await loaded();
+    expect(onViewportChange).toHaveBeenLastCalledWith([18, 46, 20, 48]);
+    const marker = await screen.findByRole("button", { name: "Találat kiválasztása: Múzeum" });
+    fireEvent.click(marker);
+    expect(onPlaceSelect).toHaveBeenCalledWith(discovery);
+    expect(screen.getByRole("button", { name: "Hely kiválasztása: Országház" })).toHaveTextContent("1");
+    await act(async () => { map.emit("moveend"); });
+    expect(map.getBounds).toHaveBeenCalledTimes(2);
+    expect(map.setConfigProperty).toHaveBeenCalledWith("basemap", "showPointOfInterestLabels", false);
+    rerender(<MapCanvas token="pk.test" points={points} onSelect={vi.fn()} onViewportChange={onViewportChange} />);
+    expect(marker).not.toBeInTheDocument();
+    expect(map.setConfigProperty).toHaveBeenLastCalledWith("basemap", "showPointOfInterestLabels", true);
+    unmount();
+    expect(map.events.get("moveend")?.size).toBe(0);
+  });
   it("shows missing-token state without loading the engine, and rejects secret tokens", async () => {
     const { rerender } = render(<MapCanvas token="" points={points} onSelect={vi.fn()} onMapClick={vi.fn()} />);
     expect(screen.getByText("A térkép beállításra vár")).toBeInTheDocument(); expect(mock.instances).toHaveLength(0);

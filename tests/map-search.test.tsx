@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlaceSearch } from "@/components/maps/place-search";
 import { mapErrorMessage } from "@/components/maps/map-errors";
-import { retrievePlace } from "@/components/maps/search-api";
+import { listPlaceCategories, retrievePlace, searchPlaceCategory } from "@/components/maps/search-api";
 
 const { error } = vi.hoisted(() => ({ error: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({ notify: { error } }));
@@ -18,6 +18,26 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("V20: Mapbox search", () => {
+  it("uses canonical category IDs and bounds, and parses only valid place results", async () => {
+    fetchMock.mockResolvedValueOnce(response({ listItems: [{ canonical_id: "museum", name: "Múzeum" }] }));
+    fetchMock.mockResolvedValueOnce(response({ features: [feature, null] }));
+    const signal = new AbortController().signal;
+    expect(await listPlaceCategories("pk.test", signal)).toEqual([{ id: "museum", label: "Múzeum" }]);
+    expect(await searchPlaceCategory("museum", [18, 46, 20, 48], "pk.test", signal)).toEqual([
+      expect.objectContaining({ id: "mapbox:budapest", label: "Budapest" }),
+    ]);
+    const url = new URL(fetchMock.mock.calls[1][0]);
+    expect(url.pathname).toMatch(/\/category\/museum$/);
+    expect(url.searchParams.get("bbox")).toBe("18,46,20,48");
+    expect(url.searchParams.get("language")).toBe("hu");
+  });
+
+  it("splits searches at the antimeridian and deduplicates returned places", async () => {
+    fetchMock.mockResolvedValue(response({ features: [feature] }));
+    expect(await searchPlaceCategory("park", [170, -20, 190, 20], "pk.test", new AbortController().signal)).toHaveLength(1);
+    expect(fetchMock.mock.calls.map(([url]) => new URL(url).searchParams.get("bbox")))
+      .toEqual(["170,-20,180,20", "-180,-20,-170,20"]);
+  });
   it("debounces 350ms, requires 3 characters, and uses Hungarian with a shared suggest/retrieve session", async () => {
     const onSelect = vi.fn();
     render(<PlaceSearch token="pk.test" onSelect={onSelect} />);

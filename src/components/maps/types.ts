@@ -1,4 +1,5 @@
 export type Coordinates = [longitude: number, latitude: number];
+export type MapBounds = [west: number, south: number, east: number, north: number];
 
 export type OpeningPeriod = { open: { day: number; time: string }; close?: { day: number; time: string } };
 export type PlaceInfo = {
@@ -15,6 +16,7 @@ export type MapPoint = {
   label: string;
   coordinates: Coordinates;
   address?: string;
+  locality?: string;
   info?: PlaceInfo;
   source?: "sample" | "search" | "map" | "manual" | "geolocation";
 };
