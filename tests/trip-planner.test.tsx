@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { TripPlanner } from "@/components/trips/trip-planner";
 import type { MapCanvasProps } from "@/components/maps/map-canvas";
 import type { MapPoint } from "@/components/maps/types";
+import { getTripPlan, saveTripPlan } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { findSamplePlace, listPlaceCategories, searchPlaceCategory } from "@/components/maps/search-api";
 
@@ -34,7 +35,8 @@ vi.mock("@/components/maps/map-canvas", () => ({
   ),
 }));
 
-vi.mock("@/lib/notifications", () => ({ notify: { error: vi.fn() } }));
+vi.mock("@/lib/api", () => ({ getTripPlan: vi.fn(), saveTripPlan: vi.fn() }));
+vi.mock("@/lib/notifications", () => ({ notify: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/components/maps/search-api", () => ({ findSamplePlace: vi.fn(), searchPlaceCategory: vi.fn(), listPlaceCategories: vi.fn() }));
 
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllEnvs(); });
@@ -51,6 +53,46 @@ async function setDates(user: ReturnType<typeof userEvent.setup>, start: string,
 }
 
 describe("V25: kirándulástervező", () => {
+  it("retries an unavailable saved plan and saves the existing draft without reloading", async () => {
+    const date = "2026-11-18";
+    const plan = {
+      destination: pecs, start: date, end: date,
+      days: [{ date, stops: [{ id: square.id, label: square.label, coordinates: square.coordinates }] }],
+    };
+    vi.mocked(getTripPlan).mockRejectedValueOnce(new Error("TRIP_UNAVAILABLE")).mockResolvedValueOnce({ version: 0, plan: null });
+    vi.mocked(saveTripPlan).mockResolvedValueOnce({ version: 1, plan });
+    const user = userEvent.setup();
+    render(<TripPlanner initialSaved={null} />);
+    await user.click(button("Pécs"));
+    await setDates(user, date, date);
+    await user.click(button("Széchenyi tér"));
+    await user.click(button("Hozzáadás ehhez a naphoz"));
+    await user.click(button("Terv mentése"));
+    await waitFor(() => expect(notify.error).toHaveBeenCalled());
+    expect(dayList(1)).toHaveTextContent("Széchenyi tér");
+
+    await user.click(button("Terv mentése"));
+    await waitFor(() => expect(saveTripPlan).toHaveBeenCalledWith(plan, 0));
+    expect(screen.getByText("Mentve a fiókodba")).toBeVisible();
+    expect(dayList(1)).toHaveTextContent("Széchenyi tér");
+  });
+
+  it("asks before replacing a saved plan discovered during the retry", async () => {
+    const date = "2026-11-18";
+    vi.mocked(getTripPlan).mockResolvedValueOnce({
+      version: 2, plan: { destination: budapest, start: date, end: date, days: [] },
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<TripPlanner initialSaved={null} />);
+    await user.click(button("Pécs"));
+    await setDates(user, date, date);
+    await user.click(button("Terv mentése"));
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(saveTripPlan).not.toHaveBeenCalled();
+    expect(button("Úti cél cseréje")).toHaveTextContent("Pécs");
+  });
+
   it("searches the visible map when a category is selected, cancels stale results, and keeps the itinerary", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     let finishOld!: (points: MapPoint[]) => void;
