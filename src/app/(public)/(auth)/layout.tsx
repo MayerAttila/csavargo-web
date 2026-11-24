@@ -1,5 +1,9 @@
 import { Brand } from "@/components/brand";
+import { pageGutters } from "@/components/layout/page-content";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <main className="flex min-h-screen flex-col px-5 py-8"><Brand className="mx-auto" /><div className="flex flex-1 items-center justify-center py-10">{children}</div></main>;
+  return <main className={`flex min-h-dvh w-full flex-col bg-surface ${pageGutters}`}>
+    <header><Brand /></header>
+    <div className="w-full border-t border-border/70 py-8 sm:py-12">{children}</div>
+  </main>;
 }

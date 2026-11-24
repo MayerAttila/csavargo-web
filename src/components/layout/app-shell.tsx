@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./sidebar";
+import { pageGutters } from "./page-content";
 import { authClient } from "@/lib/auth-client";
 import { authError } from "@/lib/auth-validation";
 import { navigateAfterAuth } from "@/lib/auth-navigation";
@@ -29,7 +30,7 @@ export function AppShell({ initialMe, children }: { initialMe: Me; children: Rea
   return <div className="flex min-h-dvh flex-col gap-2 bg-background p-2 lg:h-dvh lg:flex-row lg:overflow-hidden">
     <a href="#main-content" className="sr-only rounded-lg bg-surface p-3 text-brand focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50">Ugrás a tartalomra</a>
     <Sidebar user={data.user} pending={pending} onLogout={() => void logout()} />
-    <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 rounded-2xl px-2 py-5 outline-none sm:px-5 lg:overflow-y-auto lg:px-6 lg:py-6">
+    <main id="main-content" tabIndex={-1} className={`min-w-0 flex-1 rounded-2xl outline-none lg:overflow-y-auto ${pageGutters}`}>
       {children}
     </main>
   </div>;

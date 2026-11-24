@@ -97,9 +97,9 @@ export function MapExplorer() {
     }, { timeout: 10_000, maximumAge: 60_000, enableHighAccuracy: false });
   }
 
-  return <div className="flex min-h-0 flex-col gap-5 lg:h-full">
+  return <div className="flex min-h-0 w-full min-w-0 flex-col gap-5 lg:h-full">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand">Felfedezés</p><h1 className="text-2xl font-bold tracking-tight">Térkép</h1><p className="mt-1 text-sm text-muted-foreground">Találj helyeket, vagy jelöld meg őket a térképen.</p></div>
+      <div><p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand">Felfedezés</p><h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Térkép</h1><p className="mt-1 text-sm text-muted-foreground">Találj helyeket, vagy jelöld meg őket a térképen.</p></div>
       <p className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground">Próbaoldal · a pontok nem kerülnek mentésre</p>
     </header>
     <div className="flex flex-wrap items-center justify-between gap-3">

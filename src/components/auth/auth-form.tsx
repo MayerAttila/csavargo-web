@@ -78,8 +78,8 @@ export function AuthForm({ mode, token, invalidLink = false, destination = "/att
     } catch { showError("Nem sikerült kapcsolódni. Ellenőrizd az internetkapcsolatodat, majd próbáld újra."); }
     finally { setPending(false); }
   }
-  return <div className={account ? "w-full max-w-sm" : "w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8"}>
-    <h1 className={account ? "text-3xl leading-tight font-semibold tracking-tight sm:text-4xl lg:text-[2.65rem]" : "text-2xl font-bold"}>{titles[mode]}</h1>
+  return <div className={account ? "w-full max-w-sm" : "w-full max-w-md"}>
+    <h1 className={account ? "text-3xl leading-tight font-semibold tracking-tight sm:text-4xl lg:text-[2.65rem]" : "text-3xl font-bold tracking-tight sm:text-4xl"}>{titles[mode]}</h1>
     {account ? (
       <p className="mb-8 mt-3 text-sm text-muted-foreground sm:mb-10">
         {mode === "login" ? <>Még nincs fiókod? <Link className={accountLink} href="/regisztracio">Regisztráció</Link></>

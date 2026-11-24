@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { changeTripInvitation, listTripInvitations } from "@/lib/trip-invitations-api";
 import { notify } from "@/lib/notifications";
 import { calendarDay, tripDateLabel } from "./trip-calendar";
-import { TripCard, tripStatus } from "./trip-card";
+import { TripCard, tripCardGrid, tripStatus } from "./trip-card";
 
 const actionClass = "inline-flex min-h-10 items-center rounded-xl px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50";
 
@@ -49,7 +49,7 @@ export function TripInvitationsInbox({ userId, today }: { userId: string; today:
     </section>}
     {shared.length > 0 && <section aria-label="Velem megosztott utazások" className="space-y-3">
       <h2 className="text-lg font-semibold">Velem megosztott utazások</h2>
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[1420px]:grid-cols-4 xl:gap-5">
+      <ul className={tripCardGrid}>
         {shared.map((trip) => <li key={trip.id} className="min-w-0">
           <TripCard trip={trip} sharedId={trip.id} owner={trip.owner} status={tripStatus(trip, today)}
             inProgress={trip.start <= today && today <= trip.end}

@@ -67,18 +67,20 @@ export function TripForm({ trip }: { trip?: SavedTripPlan }) {
 
   return <>
     <form onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate className="rounded-2xl border border-border/80 bg-surface p-4 shadow-sm sm:p-6">
-      <fieldset disabled={saving} className="grid min-w-0 gap-4">
-        <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+      <fieldset disabled={saving} className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.3fr)]">
+        <label className="grid min-w-0 gap-1.5 text-xs font-medium text-muted-foreground">
           {trip ? "Utazás neve" : "Utazás neve (opcionális)"}
           <input value={name} maxLength={200} onChange={(event) => { requestId.current = null; setName(event.target.value); }}
             className="h-11 rounded-xl border border-border/80 bg-background/70 px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-brand" />
         </label>
-        <TripDestination token={token} destination={destination}
-          onChange={(point) => { requestId.current = null; setDestination(point); }} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0 md:mt-5">
+          <TripDestination token={token} destination={destination}
+            onChange={(point) => { requestId.current = null; setDestination(point); }} />
+        </div>
+        <div className="grid min-w-0 grid-cols-2 gap-3 md:col-span-full xl:col-span-1">
           <TripDateFields dates={dates} onDates={(value) => { requestId.current = null; setDates(value); }} />
         </div>
-        <button type="submit" className="min-h-11 justify-self-start rounded-xl bg-action px-4 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50">
+        <button type="submit" className="min-h-11 justify-self-start rounded-xl bg-action px-4 text-sm font-semibold text-white hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50 md:col-span-full">
           {saving ? "Folyamatban…" : trip ? "Módosítások mentése" : "Utazás létrehozása"}
         </button>
       </fieldset>

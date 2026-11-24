@@ -1,5 +1,7 @@
 "use client";
 
+import { PageContent } from "@/components/layout/page-content";
+
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { sameMapPlace } from "@/components/maps/map-poi";
@@ -176,7 +178,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
     });
   }
 
-  return <div className="mx-auto w-full max-w-[100rem] space-y-4 sm:space-y-5">
+  return <PageContent>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0">
         <Link href="/utazasok" prefetch={false} className="text-xs font-medium text-muted-foreground hover:text-brand hover:underline">Vissza az utazásokhoz</Link>
@@ -199,7 +201,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
       </div>}
     </header>
 
-    {saved && <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,0.6fr)_minmax(0,1fr)]">
+    {saved && <div className="grid items-start gap-4 lg:grid-cols-[minmax(20rem,2fr)_minmax(0,3fr)] 2xl:grid-cols-[minmax(24rem,2fr)_minmax(0,3fr)]">
       <div className="grid min-w-0 gap-4">
         <section aria-label="Szállás" className="min-w-0 rounded-2xl border border-border/80 bg-surface shadow-sm">
           <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={readOnly ? undefined : changeLodging}
@@ -221,5 +223,5 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
           onSelect={choosePlace} onAdd={readOnly ? undefined : addPlace} />
       </div>
     </div>}
-  </div>;
+  </PageContent>;
 }

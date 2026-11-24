@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PageContent } from "@/components/layout/page-content";
 import { TripPlanner } from "@/components/trips/trip-planner";
 import { requestServerApi, requireServerMe } from "@/lib/server-session";
 import { sharedTripApiPath, type SharedTrip } from "@/lib/trip-invitations-api";
@@ -26,9 +27,9 @@ export default async function SharedTripPage({ params }: { params: Promise<{ id:
 
   if (trip) return <TripPlanner key={id} initialSaved={trip} sharedBy={trip.owner} />;
 
-  return <section className="mx-auto max-w-3xl space-y-4">
+  return <PageContent>
     <Link href="/utazasok" prefetch={false} className="text-sm text-brand hover:underline">Vissza az utazásokhoz</Link>
     <h1 className="text-3xl font-bold tracking-tight">Megosztott útiterv</h1>
     <p role="status">Az útiterv betöltése nem sikerült. Frissítsd az oldalt az újbóli próbálkozáshoz.</p>
-  </section>;
+  </PageContent>;
 }

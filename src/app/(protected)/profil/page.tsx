@@ -8,6 +8,7 @@ import {
 import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 import { ProfileIdentity } from "@/components/auth/profile-identity";
 import { ProfilePassword } from "@/components/auth/profile-password";
+import { PageContent } from "@/components/layout/page-content";
 import { currentTripDate } from "@/components/trips/trip-calendar";
 import { statuses, tripStatus, type TripStatus } from "@/components/trips/trip-card";
 import type { TripSummary } from "@/lib/api";
@@ -30,7 +31,7 @@ function ActivityCard({ href, title, Icon, iconClassName, count, description, ch
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+    <div className="min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
       <Link href={href} className="group block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand">
         <div className="flex items-center justify-between gap-3">
           <span className={`inline-flex size-11 items-center justify-center rounded-xl ${iconClassName}`}>
@@ -64,11 +65,11 @@ export default async function ProfilePage() {
   const outgoing = companions?.outgoing.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 pt-2 sm:space-y-6 sm:pt-5">
+    <PageContent>
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Profilom</h1>
       <ProfileIdentity initialMe={me} />
 
-      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+      <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
         <ActivityCard href="/utazasok" title="Utazásaim" Icon={HiOutlineGlobeEuropeAfrica}
           iconClassName="bg-brand/15 text-blue-800 dark:text-blue-300" count={trips?.length}
           description={trips === null ? "Az utazások száma nem érhető el." : "Saját mentett utazás"}>
@@ -95,17 +96,16 @@ export default async function ProfilePage() {
             </ul>
           )}
         </ActivityCard>
+        <section aria-labelledby="security-heading" className="min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:col-span-2 sm:p-6 xl:col-span-1">
+          <h2 id="security-heading" className="text-lg font-semibold">Fiókbiztonság</h2>
+          <ProfilePassword />
+          {!user.emailVerified && (
+            <div className="mt-5 border-t border-border pt-4">
+              <ResendVerificationButton email={user.email} notificationId="profile-verification" />
+            </div>
+          )}
+        </section>
       </div>
-
-      <section aria-labelledby="security-heading" className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
-        <h2 id="security-heading" className="text-lg font-semibold">Fiókbiztonság</h2>
-        <ProfilePassword />
-        {!user.emailVerified && (
-          <div className="mt-5 border-t border-border pt-4">
-            <ResendVerificationButton email={user.email} notificationId="profile-verification" />
-          </div>
-        )}
-      </section>
-    </div>
+    </PageContent>
   );
 }

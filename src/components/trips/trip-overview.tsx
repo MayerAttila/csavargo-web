@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { HiOutlineMapPin, HiOutlinePlus } from "react-icons/hi2";
+import { PageContent } from "@/components/layout/page-content";
 import type { TripSummary } from "@/lib/api";
-import { TripCard, tripStatus, statuses, type TripStatus } from "./trip-card";
+import { TripCard, tripCardGrid, tripStatus, statuses, type TripStatus } from "./trip-card";
 import { TripInvitationsInbox } from "./trip-invitations-inbox";
 
 type TripFilter = "all" | TripStatus;
@@ -19,7 +20,7 @@ export function TripOverview({ trips, today, userId }: { trips: TripSummary[] | 
   for (const { status } of entries) counts[status] += 1;
   const visible = entries.filter(({ status }) => filter === "all" || status === filter);
 
-  return <section className="mx-auto max-w-[96rem] space-y-6 pt-2 sm:pt-5 lg:px-4">
+  return <PageContent>
     <header className="flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Utazások</h1>
       <Link href="/utazasok/uj" className={createClass}>
@@ -47,7 +48,7 @@ export function TripOverview({ trips, today, userId }: { trips: TripSummary[] | 
           <span className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 tabular-nums ${filter === value ? "bg-brand/15" : "bg-surface-alt"}`}>{counts[value]}</span>
         </button>)}
       </div>
-      {visible.length ? <ul aria-label="Mentett utazások" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 min-[1420px]:grid-cols-4 xl:gap-5">
+      {visible.length ? <ul aria-label="Mentett utazások" className={tripCardGrid}>
         {visible.map(({ trip, status }) => <li key={trip.slug} className="min-w-0">
           <TripCard trip={trip} slug={trip.slug} userId={userId} status={status} inProgress={trip.start <= today && today <= trip.end} />
         </li>)}
@@ -55,5 +56,5 @@ export function TripOverview({ trips, today, userId }: { trips: TripSummary[] | 
         Nincs ilyen állapotú utazás.
       </p>}
     </>}
-  </section>;
+  </PageContent>;
 }

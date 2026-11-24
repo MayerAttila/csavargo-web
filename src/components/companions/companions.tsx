@@ -4,6 +4,7 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HiOutlineBriefcase, HiOutlineInboxArrowDown, HiOutlinePaperAirplane, HiOutlineUserGroup, HiOutlineUserMinus, HiOutlineUserPlus } from "react-icons/hi2";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { PageContent } from "@/components/layout/page-content";
 import { Input } from "@/components/ui/input";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { getCompanions, inviteCompanion, updateCompanion } from "@/lib/companions-api";
@@ -89,7 +90,7 @@ export function Companions({ userId, sharedTripCount }: { userId: string; shared
     } });
   }
 
-  return <section className="w-full space-y-5 lg:space-y-7">
+  return <PageContent>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand/15 text-action ring-1 ring-brand/25 ring-inset sm:size-14 dark:text-brand">
@@ -213,5 +214,5 @@ export function Companions({ userId, sharedTripCount }: { userId: string; shared
         </button>}
       </div>
     </dialog>
-  </section>;
+  </PageContent>;
 }

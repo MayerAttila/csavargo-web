@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HiOutlineArrowLeft, HiOutlineCalendarDays, HiOutlineMapPin } from "react-icons/hi2";
+import { PageContent } from "@/components/layout/page-content";
 import { ManageTripInvitations } from "@/components/trips/manage-trip-invitations";
 import { TripCardCover } from "@/components/trips/trip-card-cover";
 import { calendarDay, tripDateLabel } from "@/components/trips/trip-calendar";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Útitárs meghívása" };
 export default async function TripInvitationsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const [{ user }, trip] = await Promise.all([requireServerMe(), loadServerTrip(slug)]);
-  return <section className="mx-auto max-w-5xl space-y-5 sm:space-y-6">
+  return <PageContent>
     <Link href={`/utazasok/${encodeURIComponent(slug)}`} prefetch={false}
       className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-surface-alt hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand">
       <HiOutlineArrowLeft aria-hidden="true" className="size-4" /> Vissza az útitervhez
@@ -35,5 +36,5 @@ export default async function TripInvitationsPage({ params }: { params: Promise<
       {trip && <TripCardCover slug={slug} className="h-36 border-t border-border md:h-full md:min-h-48 md:border-t-0 md:border-l" />}
     </header>
     <ManageTripInvitations slug={slug} userId={user.id} />
-  </section>;
+  </PageContent>;
 }
