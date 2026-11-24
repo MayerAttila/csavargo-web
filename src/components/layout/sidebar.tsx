@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { HiOutlineSquares2X2, HiOutlineGlobeEuropeAfrica, HiOutlineCalendarDays, HiOutlineMap,
   HiOutlineBanknotes, HiOutlineTicket, HiArrowRightOnRectangle, HiOutlineBars3,
-  HiOutlineXMark, HiOutlineMoon, HiOutlineSun, HiOutlineUsers } from "react-icons/hi2";
+  HiOutlineMoon, HiOutlineSun, HiOutlineUsers } from "react-icons/hi2";
 import { Brand } from "@/components/brand";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import type { Me } from "@/lib/api";
 
 const plannedNavigation = [
@@ -38,10 +39,7 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile, onSelectDesktop, 
     <header className="flex h-11 shrink-0 items-center gap-1.5 overflow-hidden px-1.5">
       <Brand href="/attekintes" className="[&>span:last-child]:hidden [&>span:first-child]:size-8 [&_img]:size-12" />
       <span className={`${textClass} flex-1 text-base font-bold tracking-tight text-brand`}>csavargó.</span>
-      {onCloseMobile && <button type="button" onClick={onCloseMobile} aria-label="Menü bezárása" title="Menü bezárása"
-        className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-alt hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand">
-        <HiOutlineXMark aria-hidden="true" className="size-6" />
-      </button>}
+      {onCloseMobile && <ModalCloseButton label="Menü bezárása" onClose={onCloseMobile} />}
     </header>
     <nav aria-label="Fő navigáció" className="mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
       <p className={`${textClass} mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground`}>Tervezés</p>

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
-import { HiOutlineUsers, HiOutlineXMark } from "react-icons/hi2";
+import { HiOutlineUsers } from "react-icons/hi2";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { ManageTripInvitations } from "./manage-trip-invitations";
 
 type Props = { count: number; name: string } & (
@@ -39,10 +40,7 @@ export function TripCompanionBadge({ count, name, slug, userId }: Props) {
           <h2 id={titleId} className="text-xl font-semibold">Útitársak kezelése</h2>
           <p className="mt-1 wrap-break-word text-sm text-muted-foreground">{name}</p>
         </div>
-        <button type="button" aria-label="Bezárás" onClick={() => dialog.current?.close()}
-          className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-surface-alt hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand">
-          <HiOutlineXMark aria-hidden="true" className="size-5" />
-        </button>
+        <ModalCloseButton onClose={() => dialog.current?.close()} />
       </header>
       {open && <ManageTripInvitations slug={slug} userId={userId} onChanged={() => router.refresh()} />}
     </dialog>

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TripForm } from "@/components/trips/trip-form";
@@ -283,12 +283,16 @@ describe("V25: kirándulástervező", () => {
 });
 
 describe("Utazás szerkesztése", () => {
+  beforeAll(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: function(this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value: function(this: HTMLDialogElement) { this.open = false; } });
+  });
+
   it("retains lodging and in-range stops, and confirms removing out-of-range days", async () => {
     const user = userEvent.setup();
     const trip = savedTrip(date, "2026-11-20");
     trip.plan.lodging = { id: "hotel", label: "Hotel", coordinates: [18.225, 46.074] };
     trip.plan.days = [{ date, stops: [gallery] }, { date: "2026-11-20", stops: [square] }];
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     vi.mocked(saveTripPlan).mockResolvedValue(trip);
     render(<TripForm trip={trip} />);
     await user.click(button("Úti cél cseréje"));
@@ -296,11 +300,16 @@ describe("Utazás szerkesztése", () => {
     fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: "2026-11-17" } });
     await user.click(button("Módosítások mentése"));
     expect(notify.error).toHaveBeenCalled();
-    expect(confirm).not.toHaveBeenCalled();
+    const confirmation = () => screen.queryByRole("dialog", { name: "Utazási időszak módosítása" });
+    expect(confirmation()).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Záró dátum"), { target: { value: "2026-11-19" } });
     await user.click(button("Módosítások mentése"));
+    const dialog = within(screen.getByRole("dialog", { name: "Utazási időszak módosítása" }));
+    await user.click(dialog.getByRole("button", { name: "Bezárás" }));
+    expect(confirmation()).not.toBeInTheDocument();
     expect(saveTripPlan).not.toHaveBeenCalled();
     await user.click(button("Módosítások mentése"));
+    await user.click(dialog.getByRole("button", { name: "Mentés és törlés" }));
     expect(saveTripPlan).toHaveBeenCalledWith(trip.slug, {
       ...trip.plan, destination: budapest, end: "2026-11-19", days: [trip.plan.days[0]],
     }, trip.version, trip.name);

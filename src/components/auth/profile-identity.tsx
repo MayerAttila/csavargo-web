@@ -7,6 +7,7 @@ import { authError, nameSchema } from "@/lib/auth-validation";
 import { getMe, meKey, saveProfile, type Me } from "@/lib/api";
 import { notify } from "@/lib/notifications";
 import { Input } from "@/components/ui/input";
+import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { buttonClass, secondaryButtonClass } from "./field";
 import { UserAvatar } from "./user-avatar";
 
@@ -34,6 +35,7 @@ export function ProfileIdentity({ initialMe }: { initialMe: Me }) {
   const { data: { user } } = useQuery({ queryKey: meKey, queryFn: getMe, initialData: initialMe, retry: false });
   const client = useQueryClient();
   const dialog = useRef<HTMLDialogElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const busy = useRef(false);
   const [working, setWorking] = useState<"photo" | "save" | null>(null);
@@ -48,6 +50,7 @@ export function ProfileIdentity({ initialMe }: { initialMe: Me }) {
     setImage(undefined);
     setNameError(undefined);
     dialog.current?.showModal();
+    nameInput.current?.focus();
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -133,9 +136,12 @@ export function ProfileIdentity({ initialMe }: { initialMe: Me }) {
     <dialog ref={dialog} aria-labelledby={titleId}
       onCancel={(event) => { if (busy.current) event.preventDefault(); }}
       className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-auto rounded-2xl border border-border bg-surface p-5 text-foreground shadow-xl backdrop:bg-black/50 sm:p-6">
-      <h2 id={titleId} className="text-xl font-bold">Profil szerkesztése</h2>
-      <form method="post" noValidate onSubmit={save} aria-busy={working !== null} className="mt-5 space-y-5">
-        <Input type="name" label="Megjelenített név" value={name} onChange={(event) => { setName(event.target.value); setNameError(undefined); }}
+      <header className="flex items-center justify-between gap-3">
+        <h2 id={titleId} className="text-xl font-bold">Profil szerkesztése</h2>
+        <ModalCloseButton disabled={working !== null} onClose={() => dialog.current?.close()} />
+      </header>
+      <form method="post" noValidate onSubmit={save} aria-busy={working !== null} className="mt-3 space-y-5">
+        <Input ref={nameInput} type="name" label="Megjelenített név" value={name} onChange={(event) => { setName(event.target.value); setNameError(undefined); }}
           required maxLength={100} disabled={working !== null} error={nameError} />
         <div className="flex items-center gap-4 rounded-xl border border-border p-3">
           <UserAvatar name={name || user.name} image={preview} className="size-14 rounded-xl text-xl" />
@@ -154,7 +160,6 @@ export function ProfileIdentity({ initialMe }: { initialMe: Me }) {
           </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-          <button type="button" className={secondaryButtonClass} disabled={working !== null} onClick={() => dialog.current?.close()}>Mégse</button>
           <button type="submit" className={`${buttonClass} text-sm`} disabled={working !== null}>{working === "save" ? "Mentés…" : "Mentés"}</button>
         </div>
       </form>
