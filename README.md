@@ -32,7 +32,7 @@ A felület saját Tailwind komponenseket használ; a munkamenetet HttpOnly süti
 ## Belépés utáni navigáció
 
 A `(protected)` layout közös alkalmazáskeretet használ. Asztali nézetben keskeny ikonsáv látható,
-amely rámutatásra vagy billentyűzetes fókuszra kinyílik; a nyíl gombbal nyitva rögzíthető.
+amely rámutatásra vagy billentyűzetes fókuszra kinyílik.
 Mobilon a menügomb modális oldalsávot nyit, fókuszcsapdával, Escape-bezárással és háttérgörgetés-tiltással.
 Navigációkor és asztali méretre váltáskor bezáródik.
 

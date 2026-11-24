@@ -58,12 +58,10 @@ describe("protected sidebar", () => {
     expect(screen.getByRole("link", { name: "Utazások" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Áttekintés" })).not.toHaveAttribute("aria-current");
   });
-  it("can pin and unpin the expanded desktop sidebar", async () => {
+  it("keeps the desktop header free of buttons", () => {
     renderShell();
-    await userEvent.click(screen.getByRole("button", { name: "Oldalsáv rögzítése" }));
-    expect(screen.getByRole("button", { name: "Rögzítés feloldása" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Rögzítés feloldása" }));
-    expect(screen.getByRole("button", { name: "Oldalsáv rögzítése" })).toHaveAttribute("aria-pressed", "false");
+    const header = screen.getByRole("complementary", { name: "Oldalsáv" }).querySelector("header")!;
+    expect(within(header).queryByRole("button")).not.toBeInTheDocument();
   });
   it("opens the mobile dialog and closes it on navigation, restoring scrolling", async () => {
     renderShell();
