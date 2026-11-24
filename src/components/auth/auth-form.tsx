@@ -11,8 +11,9 @@ import { buttonClass } from "./field";
 
 type Mode = "login" | "register" | "forgot" | "reset";
 const titles: Record<Mode, string> = {
-  login: "Üdv újra!", register: "Kezdődjön a kaland!", forgot: "Elfelejtetted a jelszavad?", reset: "Új jelszó beállítása",
+  login: "Üdv újra!", register: "Fiók létrehozása", forgot: "Elfelejtetted a jelszavad?", reset: "Új jelszó beállítása",
 };
+const accountLink = "rounded-sm font-medium text-foreground underline decoration-brand underline-offset-4 hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand";
 const subscribeToHydration = () => () => {};
 const clientReady = () => true;
 const serverReady = () => false;
@@ -20,6 +21,8 @@ export function AuthForm({ mode, token, invalidLink = false, destination = "/att
   mode: Mode; token?: string; invalidLink?: boolean; destination?: "/attekintes" | "/utitarsak" | "/utazasok";
 }) {
   const router = useRouter();
+  const account = mode === "login" || mode === "register";
+  const inputVariant = account ? "account" : undefined;
   const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -75,22 +78,27 @@ export function AuthForm({ mode, token, invalidLink = false, destination = "/att
     } catch { showError("Nem sikerült kapcsolódni. Ellenőrizd az internetkapcsolatodat, majd próbáld újra."); }
     finally { setPending(false); }
   }
-  return <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
-    <h1 className="text-2xl font-bold">{titles[mode]}</h1>
-    <p className="mb-6 mt-2 text-sm text-muted-foreground">A következő közös élmény itt kezdődik.</p>
+  return <div className={account ? "w-full max-w-sm" : "w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8"}>
+    <h1 className={account ? "text-3xl leading-tight font-semibold tracking-tight sm:text-4xl lg:text-[2.65rem]" : "text-2xl font-bold"}>{titles[mode]}</h1>
+    {account ? (
+      <p className="mb-8 mt-3 text-sm text-muted-foreground sm:mb-10">
+        {mode === "login" ? <>Még nincs fiókod? <Link className={accountLink} href="/regisztracio">Regisztráció</Link></>
+          : <>Már van fiókod? <Link className={accountLink} href="/belepes">Belépés</Link></>}
+      </p>
+    ) : <p className="mb-6 mt-2 text-sm text-muted-foreground">A következő közös élmény itt kezdődik.</p>}
     {invalidLink || (mode === "reset" && !token) ? <div role="alert" className="space-y-4"><p>A hivatkozás érvénytelen vagy lejárt.</p><Link className="text-brand underline" href="/elfelejtett-jelszo">Új hivatkozás kérése</Link></div> : <form method="post" onSubmit={submit} noValidate className="space-y-4" aria-busy={!hydrated || pending}>
       <fieldset disabled={!hydrated || pending} className="space-y-4">
-      {mode === "register" && <Input type="name" id="name" required maxLength={100} error={errors.name} />}
-      {mode !== "reset" && <Input type="email" id="email" required error={errors.email} />}
-      {mode !== "forgot" && <Input type="password" id="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required maxLength={128} error={errors.password} />}
-      {(mode === "register" || mode === "reset") && <Input type="password" id="confirmPassword" name="confirmPassword" label="Jelszó megerősítése" autoComplete="new-password" required maxLength={128} error={errors.confirmPassword} />}
-      <button className={`${buttonClass} w-full`} type="submit" disabled={!hydrated || pending}>{!hydrated ? "Űrlap betöltése…" : pending ? "Folyamatban…" : mode === "login" ? "Belépés" : mode === "register" ? "Regisztráció" : mode === "forgot" ? "Hivatkozás küldése" : "Jelszó mentése"}</button>
+      {mode === "register" && <Input type="name" variant={inputVariant} id="name" required maxLength={100} error={errors.name} />}
+      {mode !== "reset" && <Input type="email" variant={inputVariant} id="email" required error={errors.email} />}
+      {mode !== "forgot" && <Input type="password" variant={inputVariant} id="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required maxLength={128} error={errors.password} />}
+      {(mode === "register" || mode === "reset") && <Input type="password" variant={inputVariant} id="confirmPassword" name="confirmPassword" label="Jelszó megerősítése" autoComplete="new-password" required maxLength={128} error={errors.confirmPassword} />}
+      {mode === "login" && <div className="text-right text-sm"><Link className={accountLink} href="/elfelejtett-jelszo">Elfelejtettem a jelszavam</Link></div>}
+      <button className={`${buttonClass} w-full${account ? " mt-2" : ""}`} type="submit" disabled={!hydrated || pending}>{!hydrated ? "Űrlap betöltése…" : pending ? "Folyamatban…" : mode === "login" ? "Belépés" : mode === "register" ? "Regisztráció" : mode === "forgot" ? "Hivatkozás küldése" : "Jelszó mentése"}</button>
       </fieldset>
       <noscript><p role="alert" className="text-sm text-muted-foreground">Az űrlap használatához engedélyezd a JavaScriptet a böngésződben.</p></noscript>
     </form>}
-    <nav aria-label="Fiókműveletek" className="mt-6 flex flex-col gap-3 text-sm">
-      {mode === "login" && <><Link className="text-brand hover:underline" href="/elfelejtett-jelszo">Elfelejtettem a jelszavam</Link><Link className="text-brand hover:underline" href="/regisztracio">Még nincs fiókom – Regisztráció</Link></>}
-      {mode !== "login" && <Link className="text-brand hover:underline" href="/belepes">Vissza a belépéshez</Link>}
-    </nav>
+    {!account && <nav aria-label="Fiókműveletek" className="mt-6 flex flex-col gap-3 text-sm">
+      <Link className="text-brand hover:underline" href="/belepes">Vissza a belépéshez</Link>
+    </nav>}
   </div>;
 }
