@@ -2,8 +2,9 @@ import { z } from "zod";
 
 export const emailSchema = z.email("Érvényes e-mail-címet adj meg.");
 export const passwordSchema = z.string().min(8, "A jelszó legalább 8 karakter legyen.").max(128, "A jelszó legfeljebb 128 karakter lehet.");
+export const nameSchema = z.string().trim().min(1, "Add meg a nevedet.").max(100, "A név legfeljebb 100 karakter lehet.");
 export const registrationSchema = z.object({
-  name: z.string().trim().min(1, "Add meg a nevedet.").max(100, "A név legfeljebb 100 karakter lehet."),
+  name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
 });
@@ -11,6 +12,10 @@ export const loginSchema = z.object({ email: emailSchema, password: z.string().m
 
 const messages: Record<string, string> = {
   INVALID_EMAIL: "Az e-mail-cím formátuma hibás. Például: nev@pelda.hu.",
+  INVALID_AVATAR: "Érvénytelen profilkép. Válassz másik képet.",
+  AVATAR_UNAVAILABLE: "A profilképek átmenetileg nem érhetők el. Próbáld újra később.",
+  PROFILE_CHANGED: "A profil időközben megváltozott. Frissítsd az oldalt, majd próbáld újra.",
+  UNAUTHORIZED: "A bejelentkezésed lejárt. Jelentkezz be újra.",
   INVALID_NAME: "Adj meg egy 1–100 karakteres nevet.",
   INVALID_PASSWORD: "Hibás jelszó. Ellenőrizd a jelszavadat, vagy kérj újat.",
   INVALID_EMAIL_OR_PASSWORD: "Hibás e-mail-cím vagy jelszó.",

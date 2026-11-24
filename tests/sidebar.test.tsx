@@ -1,8 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
+import type { NextRouter } from "next/router";
 import { AppShell } from "@/components/layout/app-shell";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -64,6 +66,19 @@ describe("protected sidebar", () => {
     renderShell();
     const header = screen.getByRole("complementary", { name: "Oldalsáv" }).querySelector("header")!;
     expect(within(header).queryByRole("button")).not.toBeInTheDocument();
+  });
+  it("V17: collapses the desktop rail on selection and restores hover on pointer exit", () => {
+    const push = vi.fn();
+    const router = { push, prefetch: vi.fn().mockResolvedValue(undefined) } as unknown as NextRouter;
+    render(<RouterContext.Provider value={router}><Sidebar user={me.user} pending={false} onLogout={() => {}} /></RouterContext.Provider>);
+    const sidebar = screen.getByRole("complementary", { name: "Oldalsáv" });
+    const link = within(sidebar).getByRole("link", { name: "Utazások" });
+    expect(sidebar).toHaveClass("hover:w-56");
+    fireEvent.click(link);
+    expect(push).toHaveBeenCalled();
+    expect(sidebar).not.toHaveClass("hover:w-56");
+    fireEvent.pointerLeave(sidebar);
+    expect(sidebar).toHaveClass("hover:w-56");
   });
   it("opens the mobile dialog and closes it on navigation, restoring scrolling", async () => {
     renderShell();

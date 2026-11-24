@@ -1,6 +1,7 @@
 import type { paths } from "@/generated/api";
 
 export type Me = paths["/api/me"]["get"]["responses"][200]["content"]["application/json"];
+type ProfileUpdate = paths["/api/me/profile"]["patch"]["requestBody"]["content"]["application/json"];
 export const meKey = ["me"] as const;
 export type SavedTripPlan = paths["/api/trips/{slug}"]["get"]["responses"][200]["content"]["application/json"];
 export type TripPlan = SavedTripPlan["plan"];
@@ -52,4 +53,18 @@ export async function getMe(): Promise<Me> {
   const response = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
   if (!response.ok) throw new Error(response.status === 401 ? "UNAUTHORIZED" : "API_UNAVAILABLE");
   return response.json();
+}
+
+export async function saveProfile(changes: ProfileUpdate): Promise<
+  { data: Me; error: null } | { data: null; error: { code?: string; status: number } }
+> {
+  const response = await fetch("/api/me/profile", {
+    method: "PATCH", credentials: "same-origin", cache: "no-store",
+    headers: { "content-type": "application/json" }, body: JSON.stringify(changes),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    return { data: null, error: { code: typeof body?.code === "string" ? body.code : undefined, status: response.status } };
+  }
+  return { data: await response.json(), error: null };
 }

@@ -1,5 +1,6 @@
 import { it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -16,6 +17,8 @@ it("renders profile preview markup", async () => {
     : { accepted: [{ id: "one", name: "Utazo" }], incoming: [{ id: "two", name: "Utazo" }], outgoing: [] });
   for (const emailVerified of [true, false]) {
     requireServerMe.mockResolvedValue({ user: { id: "demo", name: "Nagy Anna", email: "anna@example.com", emailVerified } });
-    await writeFile(join(tmpdir(), "csavargo-profile-preview-" + emailVerified + ".html"), renderToStaticMarkup(await ProfilePage()));
+    const client = new QueryClient();
+    const markup = renderToStaticMarkup(<QueryClientProvider client={client}>{await ProfilePage()}</QueryClientProvider>);
+    await writeFile(join(tmpdir(), "csavargo-profile-preview-" + emailVerified + ".html"), markup);
   }
 });

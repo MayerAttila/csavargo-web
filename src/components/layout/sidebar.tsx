@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useId, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -22,13 +22,15 @@ const clientReady = () => true;
 const serverReady = () => false;
 
 type SidebarProps = { user: Me["user"]; pending: boolean; onLogout: () => void };
-type MenuProps = SidebarProps & { onCloseMobile?: () => void };
+type MenuProps = SidebarProps & { onCloseMobile?: () => void; onSelectDesktop?: () => void; dismissExpansion?: boolean };
 
-function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
+function SidebarMenu({ user, pending, onLogout, onCloseMobile, onSelectDesktop, dismissExpansion }: MenuProps) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
-  const textClass = `min-w-0 whitespace-nowrap transition-opacity duration-200 motion-reduce:transition-none ${onCloseMobile ? "opacity-100" : "opacity-0 group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100"}`;
+  const textClass = `min-w-0 whitespace-nowrap transition-opacity duration-200 motion-reduce:transition-none ${onCloseMobile
+    ? "opacity-100"
+    : dismissExpansion ? "opacity-0" : "opacity-0 group-hover/sidebar:opacity-100 group-has-[:focus-visible]/sidebar:opacity-100"}`;
   const dark = hydrated && resolvedTheme === "dark";
   const ThemeIcon = dark ? HiOutlineSun : HiOutlineMoon;
   const active = pathname === "/attekintes";
@@ -44,20 +46,20 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
     <nav aria-label="Fő navigáció" className="mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
       <p className={`${textClass} mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground`}>Tervezés</p>
       <div className="space-y-0.5">
-        <Link href="/attekintes" aria-label="Áttekintés" aria-current={active ? "page" : undefined} title="Áttekintés" onClick={onCloseMobile}
+        <Link href="/attekintes" aria-label="Áttekintés" aria-current={active ? "page" : undefined} title="Áttekintés" onClick={onCloseMobile} onNavigate={onSelectDesktop}
           className={`${rowClass} ${active ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineSquares2X2 aria-hidden="true" /></span>
           <span className={textClass}>Áttekintés</span>
         </Link>
-        <Link href="/utazasok" aria-label="Utazások" aria-current={pathname === "/utazasok" ? "page" : pathname?.startsWith("/utazasok/") ? "location" : undefined} title="Utazások" onClick={onCloseMobile}
+        <Link href="/utazasok" aria-label="Utazások" aria-current={pathname === "/utazasok" ? "page" : pathname?.startsWith("/utazasok/") ? "location" : undefined} title="Utazások" onClick={onCloseMobile} onNavigate={onSelectDesktop}
           className={`${rowClass} ${pathname === "/utazasok" || pathname?.startsWith("/utazasok/") ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineGlobeEuropeAfrica aria-hidden="true" /></span><span className={textClass}>Utazások</span>
         </Link>
-        <Link href="/utitarsak" aria-label="Útitársak" aria-current={pathname === "/utitarsak" ? "page" : undefined} title="Útitársak" onClick={onCloseMobile}
+        <Link href="/utitarsak" aria-label="Útitársak" aria-current={pathname === "/utitarsak" ? "page" : undefined} title="Útitársak" onClick={onCloseMobile} onNavigate={onSelectDesktop}
           className={`${rowClass} ${pathname === "/utitarsak" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineUsers aria-hidden="true" /></span><span className={textClass}>Útitársak</span>
         </Link>
-        <Link href="/terkep" aria-label="Térkép" aria-current={pathname === "/terkep" ? "page" : undefined} title="Térkép" onClick={onCloseMobile}
+        <Link href="/terkep" aria-label="Térkép" aria-current={pathname === "/terkep" ? "page" : undefined} title="Térkép" onClick={onCloseMobile} onNavigate={onSelectDesktop}
           className={`${rowClass} ${pathname === "/terkep" ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"}`}>
           <span className={slotClass}><HiOutlineMap aria-hidden="true" /></span><span className={textClass}>Térkép</span>
         </Link>
@@ -82,9 +84,9 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
         <span className={textClass}>{pending ? "Kijelentkezés…" : "Kijelentkezés"}</span>
       </button>
       <div className="mt-2 border-t border-border pt-1">
-        <Link href="/profil" aria-label="Profilom" title="Profilom" aria-current={pathname === "/profil" ? "page" : undefined} onClick={onCloseMobile}
+        <Link href="/profil" aria-label="Profilom" title="Profilom" aria-current={pathname === "/profil" ? "page" : undefined} onClick={onCloseMobile} onNavigate={onSelectDesktop}
           className={`${rowClass} min-h-11 ${pathname === "/profil" ? "bg-brand/10" : "hover:bg-surface-alt"}`}>
-          <span className={slotClass}><UserAvatar name={user.name} className="size-7 rounded-lg text-xs" /></span>
+          <span className={slotClass}><UserAvatar name={user.name} image={user.image} className="size-7 rounded-lg text-xs" /></span>
           <span className={`${textClass} flex-1`}>
             <span className="block truncate text-sm font-semibold">{user.name}</span>
             <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
@@ -96,6 +98,7 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
 }
 
 export function Sidebar(props: SidebarProps) {
+  const [dismissExpansion, setDismissExpansion] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const id = useId();
   const pathname = usePathname();
@@ -109,8 +112,11 @@ export function Sidebar(props: SidebarProps) {
     return () => { desktop.removeEventListener("change", onResize); document.body.classList.remove("overflow-hidden"); };
   }, [closeMobile]);
   return <>
-    <aside aria-label="Oldalsáv" className="group/sidebar hidden w-14 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-sm transition-[width] duration-300 hover:w-56 focus-within:w-56 motion-reduce:transition-none lg:flex">
-      <SidebarMenu {...props} />
+    <aside aria-label="Oldalsáv"
+      className={`group/sidebar hidden w-14 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-sm transition-[width] duration-300 motion-reduce:transition-none lg:flex ${dismissExpansion ? "" : "hover:w-56 has-[:focus-visible]:w-56"}`}
+      onPointerLeave={() => setDismissExpansion(false)}
+      onFocusCapture={(event) => { if (event.target.matches(":focus-visible")) setDismissExpansion(false); }}>
+      <SidebarMenu {...props} dismissExpansion={dismissExpansion} onSelectDesktop={() => setDismissExpansion(true)} />
     </aside>
     <header className="flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 lg:hidden">
       <Brand href="/attekintes" />

@@ -3,10 +3,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";
 import {
-  HiArrowRight, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlineGlobeEuropeAfrica, HiOutlineUsers,
+  HiArrowRight, HiOutlineGlobeEuropeAfrica, HiOutlineUsers,
 } from "react-icons/hi2";
 import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
-import { UserAvatar } from "@/components/auth/user-avatar";
+import { ProfileIdentity } from "@/components/auth/profile-identity";
+import { ProfilePassword } from "@/components/auth/profile-password";
 import { currentTripDate } from "@/components/trips/trip-calendar";
 import { statuses, tripStatus, type TripStatus } from "@/components/trips/trip-card";
 import type { TripSummary } from "@/lib/api";
@@ -49,7 +50,8 @@ function ActivityCard({ href, title, Icon, iconClassName, count, description, ch
 }
 
 export default async function ProfilePage() {
-  const { user } = await requireServerMe();
+  const me = await requireServerMe();
+  const { user } = me;
   const [trips, companions] = await Promise.all([
     loadServerApi<TripSummary[]>("/api/trips"),
     loadServerApi<CompanionLists>("/api/companions"),
@@ -60,15 +62,11 @@ export default async function ProfilePage() {
 
   const incoming = companions?.incoming.length ?? 0;
   const outgoing = companions?.outgoing.length ?? 0;
-  const VerificationIcon = user.emailVerified ? HiOutlineCheckCircle : HiOutlineClock;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pt-2 sm:space-y-6 sm:pt-5">
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Profilom</h1>
-      <header className="flex min-w-0 items-center gap-4 rounded-2xl border border-border bg-linear-to-br from-brand/15 via-surface to-accent/15 p-5 shadow-sm sm:gap-5 sm:p-8">
-        <UserAvatar name={user.name} className="size-16 rounded-2xl text-2xl ring-1 ring-brand/20 sm:size-20 sm:text-3xl" />
-        <p className="min-w-0 text-2xl font-bold tracking-tight wrap-anywhere sm:text-3xl">{user.name}</p>
-      </header>
+      <ProfileIdentity initialMe={me} />
 
       <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
         <ActivityCard href="/utazasok" title="Utazásaim" Icon={HiOutlineGlobeEuropeAfrica}
@@ -99,25 +97,9 @@ export default async function ProfilePage() {
         </ActivityCard>
       </div>
 
-      <section aria-labelledby="account-heading" className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
-        <h2 id="account-heading" className="text-lg font-semibold">Fiókadataim</h2>
-        <dl className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <div className="min-w-0">
-            <dt className="flex items-center gap-2 text-sm text-muted-foreground">
-              <HiOutlineEnvelope aria-hidden="true" className="size-5" /> E-mail-cím
-            </dt>
-            <dd className="mt-1 font-medium wrap-anywhere">{user.email}</dd>
-          </div>
-          <div>
-            <dt className="sr-only">E-mail-cím megerősítése</dt>
-            <dd className={`${badgeClass} ${user.emailVerified
-              ? "bg-accent/15 text-emerald-800 dark:text-emerald-300"
-              : "bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-200"}`}>
-              <VerificationIcon aria-hidden="true" className="size-4" />
-              {user.emailVerified ? "Megerősítve" : "Megerősítésre vár"}
-            </dd>
-          </div>
-        </dl>
+      <section aria-labelledby="security-heading" className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+        <h2 id="security-heading" className="text-lg font-semibold">Fiókbiztonság</h2>
+        <ProfilePassword />
         {!user.emailVerified && (
           <div className="mt-5 border-t border-border pt-4">
             <ResendVerificationButton email={user.email} notificationId="profile-verification" />
