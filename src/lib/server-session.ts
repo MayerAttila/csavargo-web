@@ -11,6 +11,15 @@ export async function requestServerApi(path: string) {
   });
 }
 
+export async function loadServerApi<T>(path: string): Promise<T | null> {
+  try {
+    const response = await requestServerApi(path);
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 export const getServerMe = cache(async (): Promise<Me | null> => {
   const response = await requestServerApi("/api/me");
   if (response.status === 401) return null;

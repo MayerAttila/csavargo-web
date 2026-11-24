@@ -4,6 +4,11 @@ export type TripDateInputs = { start: string; end: string };
 const dayInMilliseconds = 86_400_000;
 const fullDate = new Intl.DateTimeFormat("hu-HU", { dateStyle: "full", timeZone: "UTC" });
 const shortDate = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric", timeZone: "UTC" });
+const localDate = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: "Europe/Budapest" });
+
+export function currentTripDate() {
+  return localDate.format(new Date());
+}
 
 export function calendarDay(value: string) {
   // UTC calendar days keep the duration consistent across daylight saving changes.

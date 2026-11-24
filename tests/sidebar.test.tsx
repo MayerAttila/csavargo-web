@@ -48,8 +48,10 @@ describe("protected sidebar", () => {
     expect(screen.getByRole("link", { name: "Utazások" })).toHaveAttribute("href", "/utazasok");
     expect(screen.getByRole("button", { name: "Költségek – hamarosan" })).toBeDisabled();
     const sidebar = within(screen.getByRole("complementary", { name: "Oldalsáv" }));
-    expect(sidebar.getByText("Teszt Utazó")).toBeInTheDocument();
-    expect(sidebar.getByText("utazo@example.com")).toBeInTheDocument();
+    const profile = sidebar.getByRole("link", { name: "Profilom" });
+    expect(profile).toHaveAttribute("href", "/profil");
+    expect(profile).toHaveTextContent("Teszt Utazó");
+    expect(profile).toHaveTextContent("utazo@example.com");
     expect(screen.getByRole("main")).toHaveTextContent("Privát oldal");
   });
   it("marks the trip planner as the current page", () => {
@@ -68,7 +70,7 @@ describe("protected sidebar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Menü megnyitása" }));
     const dialog = screen.getByRole("dialog", { name: "Navigáció" });
     expect(document.body).toHaveClass("overflow-hidden");
-    const link = within(dialog).getByRole("link", { name: "Utazások" });
+    const link = within(dialog).getByRole("link", { name: "Profilom" });
     link.addEventListener("click", (event) => event.preventDefault());
     await userEvent.click(link);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

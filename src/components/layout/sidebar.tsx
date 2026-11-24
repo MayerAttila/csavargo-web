@@ -7,6 +7,7 @@ import { HiOutlineSquares2X2, HiOutlineGlobeEuropeAfrica, HiOutlineCalendarDays,
   HiOutlineBanknotes, HiOutlineTicket, HiArrowRightOnRectangle, HiOutlineBars3,
   HiOutlineXMark, HiOutlineMoon, HiOutlineSun, HiOutlineUsers } from "react-icons/hi2";
 import { Brand } from "@/components/brand";
+import { UserAvatar } from "@/components/auth/user-avatar";
 import type { Me } from "@/lib/api";
 
 const plannedNavigation = [
@@ -30,7 +31,6 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
   const textClass = `min-w-0 whitespace-nowrap transition-opacity duration-200 motion-reduce:transition-none ${onCloseMobile ? "opacity-100" : "opacity-0 group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100"}`;
   const dark = hydrated && resolvedTheme === "dark";
   const ThemeIcon = dark ? HiOutlineSun : HiOutlineMoon;
-  const initials = user.name.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join("").toLocaleUpperCase("hu");
   const active = pathname === "/attekintes";
   return <>
     <header className="flex h-11 shrink-0 items-center gap-1.5 overflow-hidden px-1.5">
@@ -81,9 +81,15 @@ function SidebarMenu({ user, pending, onLogout, onCloseMobile }: MenuProps) {
         <span className={slotClass}><HiArrowRightOnRectangle aria-hidden="true" /></span>
         <span className={textClass}>{pending ? "Kijelentkezés…" : "Kijelentkezés"}</span>
       </button>
-      <div className="mt-2 flex h-12 items-center gap-1.5 overflow-hidden border-t border-border px-1.5" title={`${user.name} · ${user.email}`}>
-        <span className={slotClass}><span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-[10px] font-bold text-brand" aria-hidden="true">{initials}</span></span>
-        <div className={`${textClass} flex-1`}><p className="truncate text-sm font-semibold">{user.name}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div>
+      <div className="mt-2 border-t border-border pt-1">
+        <Link href="/profil" aria-label="Profilom" title="Profilom" aria-current={pathname === "/profil" ? "page" : undefined} onClick={onCloseMobile}
+          className={`${rowClass} min-h-11 ${pathname === "/profil" ? "bg-brand/10" : "hover:bg-surface-alt"}`}>
+          <span className={slotClass}><UserAvatar name={user.name} className="size-7 rounded-lg text-xs" /></span>
+          <span className={`${textClass} flex-1`}>
+            <span className="block truncate text-sm font-semibold">{user.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+          </span>
+        </Link>
       </div>
     </footer>
   </>;
