@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { sameMapPlace } from "@/components/maps/map-poi";
 import type { MapCameraCommand, MapPoint } from "@/components/maps/types";
@@ -29,7 +29,8 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   const readOnly = sharedBy !== undefined;
   const destination = saved ? restorePoint(saved.plan.destination) : undefined;
   const range = saved ? { start: calendarDay(saved.plan.start), end: calendarDay(saved.plan.end) } : undefined;
-  const [lodging, setLodging] = useState<MapPoint | undefined>(() => restored?.lodging ? restorePoint(restored.lodging) : undefined);
+  const [lodging, setLodging] = useState(restored?.lodging);
+  const mappedLodging = useMemo(() => lodging && "coordinates" in lodging ? restorePoint(lodging) : undefined, [lodging]);
   const [travel, setTravel] = useState<TripTravel>({ arrival: restored?.arrival, departure: restored?.departure });
   const [pickingLodging, setPickingLodging] = useState(false);
   const [placeView, setPlaceView] = useState<"map" | "list">("map");
@@ -51,7 +52,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   const plan: TripPlan | null = saved ? {
     ...saved.plan,
     ...travel,
-    lodging: lodging ? storedPoint(lodging) : undefined,
+    lodging,
     days: Object.entries(days).sort(([a], [b]) => Number(a) - Number(b)).flatMap(([day, stops]) => stops?.length
       ? [{ date: dateInputValue(Number(day)), stops: stops.map(storedPoint) }] : []),
   } : null;
@@ -72,7 +73,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
         const { lodging: savedLodging, start } = loaded.plan;
         const startDay = calendarDay(start);
         const restoredDays = restoreDays(loaded.plan);
-        setLodging(savedLodging ? restorePoint(savedLodging) : undefined);
+        setLodging(savedLodging);
         setTravel({ arrival: loaded.plan.arrival, departure: loaded.plan.departure });
         setActiveDay(startDay);
         setDays(restoredDays);
@@ -98,15 +99,32 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
   }
 
   function changeLodging(point?: MapPoint) {
-    setLodging(point);
+    setLodging((current) => {
+      if (!point) return undefined;
+      if (current && "coordinates" in current && sameMapPlace(point, restorePoint(current))) {
+        return { ...storedPoint(point), checkInTime: current.checkInTime, checkOutTime: current.checkOutTime };
+      }
+      return storedPoint(point);
+    });
+    setPickingLodging(false);
+  }
+
+  function changeManualLodging(label: string) {
+    setLodging((current) => {
+      if (!label) return undefined;
+      if (current && (!("coordinates" in current) || current.label === label)) {
+        return { label, checkInTime: current.checkInTime, checkOutTime: current.checkOutTime };
+      }
+      return { label };
+    });
     setPickingLodging(false);
   }
 
   function toggleLodgingMapPick() {
     if (readOnly) {
-      if (lodging) {
+      if (mappedLodging) {
         setPlaceView("map");
-        setCamera({ type: "view", view: { center: lodging.coordinates, zoom: 15 } });
+        setCamera({ type: "view", view: { center: mappedLodging.coordinates, zoom: 15 } });
         placeWorkspace.current?.scrollIntoView?.({ block: "nearest" });
       }
       return;
@@ -114,7 +132,7 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
     setPickingLodging(!pickingLodging);
     if (!pickingLodging) {
       setPlaceView("map");
-      if (lodging) setCamera({ type: "view", view: { center: lodging.coordinates, zoom: 15 } });
+      if (mappedLodging) setCamera({ type: "view", view: { center: mappedLodging.coordinates, zoom: 15 } });
       placeWorkspace.current?.scrollIntoView?.({ block: "nearest" });
     }
   }
@@ -185,15 +203,18 @@ export function TripPlanner({ slug, initialSaved = null, sharedBy }: Props) {
       <div className="grid min-w-0 gap-4">
         <section aria-label="Szállás" className="min-w-0 rounded-2xl border border-border/80 bg-surface shadow-sm">
           <TripLodging token={token} lodging={lodging} picking={pickingLodging} onChange={readOnly ? undefined : changeLodging}
+            onManualChange={!readOnly && process.env.NODE_ENV === "development" ? changeManualLodging : undefined}
+            onCancelMapPick={() => setPickingLodging(false)}
+            onTimeChange={readOnly ? undefined : (kind, time) => setLodging((current) => current && { ...current, [kind]: time })}
             onToggleMapPick={toggleLodgingMapPick} />
         </section>
-        <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay} travel={travel}
+        <TripAgenda range={range} activeDay={activeDay} places={places} onDay={chooseDay} travel={travel} lodgingTimes={lodging}
           onTravelChange={readOnly ? undefined : (kind, value) => setTravel((current) => ({ ...current, [kind]: value }))}
           onSelect={choosePlace} onRemove={readOnly ? undefined : removePlace} onMove={readOnly ? undefined : movePlace} getPlaceInfo={getPlaceInfo} />
       </div>
 
       <div ref={placeWorkspace} className="min-w-0">
-        <TripPlaceWorkspace token={token} activeDay={activeDay} points={places} lodging={lodging}
+        <TripPlaceWorkspace token={token} activeDay={activeDay} points={places} lodging={mappedLodging}
           candidate={candidate ? getPlaceInfo(candidate) : undefined} selectedId={existing?.id} camera={camera}
           view={placeView} onViewChange={(view) => { setPlaceView(view); if (view === "list") setPickingLodging(false); }}
           onLodgingPick={pickingLodging ? changeLodging : undefined} onCancelLodgingPick={() => setPickingLodging(false)}

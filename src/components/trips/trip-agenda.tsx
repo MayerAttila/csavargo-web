@@ -1,6 +1,6 @@
-import { HiOutlineCalendarDays } from "react-icons/hi2";
+import { HiOutlineArrowRightOnRectangle, HiOutlineCalendarDays, HiOutlineKey } from "react-icons/hi2";
 import type { MapPoint } from "@/components/maps/types";
-import type { TripTravel, TripTravelLeg } from "@/lib/api";
+import type { TripLodgingTimes, TripTravel, TripTravelLeg } from "@/lib/api";
 import { TripDayPlaces } from "./trip-day-places";
 import { calendarDay, dateInputValue, tripDateLabel, type TripDateRange } from "./trip-calendar";
 import type { GetTripPlaceInfo } from "./use-trip-place-info";
@@ -11,6 +11,7 @@ type Props = {
   activeDay?: number;
   places: MapPoint[];
   travel: TripTravel;
+  lodgingTimes?: TripLodgingTimes;
   onTravelChange?: (kind: keyof TripTravel, value?: TripTravelLeg) => void;
   onDay: (day: number) => void;
   onSelect: (place: MapPoint) => void;
@@ -19,7 +20,7 @@ type Props = {
   getPlaceInfo: GetTripPlaceInfo;
 };
 
-export function TripAgenda({ range, activeDay, places, travel, onTravelChange, onDay, onSelect, onRemove, onMove, getPlaceInfo }: Props) {
+export function TripAgenda({ range, activeDay, places, travel, lodgingTimes, onTravelChange, onDay, onSelect, onRemove, onMove, getPlaceInfo }: Props) {
   const dayCount = range ? range.end - range.start + 1 : 0;
   const dayNumber = range && activeDay !== undefined ? activeDay - range.start + 1 : 0;
   const useCalendar = dayCount > 31;
@@ -55,6 +56,8 @@ export function TripAgenda({ range, activeDay, places, travel, onTravelChange, o
         <div className="min-w-0 space-y-2.5 rounded-xl border border-border/70 bg-surface-alt/35 p-2.5 sm:p-3">
           {activeDay === range.start && <TripTravelLegFields kind="arrival" value={travel.arrival}
             onChange={onTravelChange && ((value) => onTravelChange("arrival", value))} />}
+          {activeDay === range.start && lodgingTimes?.checkInTime && <LodgingTime time={lodgingTimes.checkInTime} kind="checkInTime" />}
+          {activeDay === range.end && lodgingTimes?.checkOutTime && <LodgingTime time={lodgingTimes.checkOutTime} kind="checkOutTime" />}
           {places.length ? <TripDayPlaces key={activeDay} dayNumber={dayNumber} places={places}
             onSelect={onSelect} onRemove={onRemove} onMove={onMove} getPlaceInfo={getPlaceInfo} />
             : <p className="text-sm text-muted-foreground">{onMove ? "Válassz egy helyet a térképen vagy a keresőből, majd add hozzá ehhez a naphoz." : "Ehhez a naphoz még nincs mentett program."}</p>}
@@ -64,4 +67,14 @@ export function TripAgenda({ range, activeDay, places, travel, onTravelChange, o
       </div>
     ) : <p className="rounded-xl bg-surface-alt/40 p-3 text-sm text-muted-foreground">Állítsd be az utazás időszakát a napi programhoz.</p>}
   </section>;
+}
+
+function LodgingTime({ kind, time }: { kind: keyof TripLodgingTimes; time: string }) {
+  const checkIn = kind === "checkInTime";
+  const Icon = checkIn ? HiOutlineKey : HiOutlineArrowRightOnRectangle;
+  return <p className="flex min-w-0 items-center gap-1.5 rounded-xl border border-border/70 bg-surface p-2 text-xs font-semibold">
+    <Icon aria-hidden="true" className="size-4 shrink-0 text-brand" />
+    <span className="flex-1">{checkIn ? "Szállás elfoglalása" : "Szállás elhagyása"}</span>
+    <span className="shrink-0 text-muted-foreground">{checkIn ? "ettől" : "eddig"} <time dateTime={time}>{time}</time></span>
+  </p>;
 }

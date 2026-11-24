@@ -57,6 +57,24 @@ function savedTrip(start = date, end = start): SavedTripPlan {
 }
 
 describe("V25: kirándulástervező", () => {
+  it.each(["", "pk.test"])("V31: development can save manual lodging and times with token %j", async (token) => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", token);
+    const trip = savedTrip();
+    const lodging = { label: "Belvárosi apartman", checkInTime: "15:00", checkOutTime: "10:00" };
+    const updatedPlan = { ...trip.plan, lodging };
+    vi.mocked(saveTripPlan).mockResolvedValue({ ...trip, version: 2, plan: updatedPlan });
+    render(<TripPlanner slug={trip.slug} initialSaved={trip} />);
+
+    const user = userEvent.setup();
+    if (token) await user.click(button("Kézi megadás"));
+    fireEvent.change(screen.getByLabelText("Szállás neve"), { target: { value: lodging.label } });
+    fireEvent.change(screen.getByLabelText("Elfoglalható ettől"), { target: { value: lodging.checkInTime } });
+    fireEvent.change(screen.getByLabelText("Elhagyandó eddig"), { target: { value: lodging.checkOutTime } });
+    await user.click(button("Terv mentése"));
+    expect(saveTripPlan).toHaveBeenCalledWith(trip.slug, updatedPlan, trip.version, trip.name);
+  });
+
   it("V31: chooses a mapped place or coordinate as lodging without adding a daily stop", async () => {
     vi.stubEnv("NEXT_PUBLIC_MAPBOX_TOKEN", "pk.test");
     vi.mocked(searchPlaceCategory).mockImplementation(async (category) => category === "lodging" ? [gallery] : []);

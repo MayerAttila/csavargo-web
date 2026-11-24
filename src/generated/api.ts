@@ -394,6 +394,12 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
+                            } | {
+                                label: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
                             };
                             arrival?: {
                                 /** @enum {string} */
@@ -448,6 +454,12 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
+                            } | {
+                                label: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
                             };
                             arrival?: {
                                 /** @enum {string} */
@@ -564,6 +576,12 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
+                            } | {
+                                label: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
                             };
                             arrival?: {
                                 /** @enum {string} */
@@ -661,6 +679,12 @@ export interface operations {
                             coordinates: (number)[];
                             address?: string;
                             locality?: string;
+                            checkInTime?: string;
+                            checkOutTime?: string;
+                        } | {
+                            label: string;
+                            checkInTime?: string;
+                            checkOutTime?: string;
                         };
                         arrival?: {
                             /** @enum {string} */
@@ -716,6 +740,12 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
+                            } | {
+                                label: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
                             };
                             arrival?: {
                                 /** @enum {string} */
@@ -1564,6 +1594,12 @@ export interface operations {
                                 coordinates: (number)[];
                                 address?: string;
                                 locality?: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
+                            } | {
+                                label: string;
+                                checkInTime?: string;
+                                checkOutTime?: string;
                             };
                             arrival?: {
                                 /** @enum {string} */

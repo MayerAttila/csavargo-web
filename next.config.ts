@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { fileURLToPath } from "node:url";
 const nextConfig: NextConfig = {
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
+  experimental: { turbopackFileSystemCacheForDev: false },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${process.env.API_INTERNAL_URL ?? "http://127.0.0.1:3001"}/api/:path*` }];
   },
