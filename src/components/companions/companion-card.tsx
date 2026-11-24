@@ -1,4 +1,4 @@
-import { HiOutlineCalendarDays, HiOutlineCheck, HiOutlineMap, HiOutlineUserGroup } from "react-icons/hi2";
+import { HiArrowUturnLeft, HiCheck, HiOutlineCalendarDays, HiOutlineMap, HiOutlineUserGroup, HiXMark } from "react-icons/hi2";
 import { UserAvatar } from "@/components/auth/user-avatar";
 import type { CompanionLists } from "@/lib/companions-api";
 
@@ -10,55 +10,57 @@ type Props = { disabled: boolean } & (
 );
 
 const variants = {
-  accepted: { border: "border-border hover:border-brand/40" },
-  incoming: { action: "Elutasítás", border: "border-border border-l-2 border-l-brand" },
-  outgoing: { action: "Visszavonás", border: "border-border border-l-2 border-l-muted-foreground/35" },
+  accepted: { classes: "flex-col items-stretch gap-3 border-border bg-surface p-3 shadow-sm hover:border-brand/50 sm:p-4" },
+  incoming: { action: "Elutasítás", icon: HiXMark, classes: "flex-wrap items-center gap-3 border-border bg-surface-alt/50 p-3" },
+  outgoing: { action: "Visszavonás", icon: HiArrowUturnLeft, classes: "flex-wrap items-center gap-3 border-border bg-surface-alt/50 p-3" },
 };
 export const companionMetrics = [
-  { key: "ownedTrips", label: "Saját utazás", icon: HiOutlineMap },
-  { key: "sharedTrips", label: "Közös utazás", icon: HiOutlineCalendarDays },
-  { key: "companions", label: "Útitárs", icon: HiOutlineUserGroup },
+  { key: "ownedTrips", label: "Saját utazás", cardLabel: "utazás", icon: HiOutlineMap },
+  { key: "sharedTrips", label: "Közös utazás", cardLabel: "közös út", icon: HiOutlineCalendarDays },
+  { key: "companions", label: "Útitárs", cardLabel: "útitárs", icon: HiOutlineUserGroup },
 ] as const;
-const button = "inline-flex min-h-10 items-center justify-center gap-1 rounded-lg px-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50";
+const button = "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50 sm:text-sm";
 
 export function CompanionCard(props: Props) {
   const { variant, disabled } = props;
   const { name } = props.companion;
-  const { border } = variants[variant];
   const accepted = props.variant === "accepted";
+  const pendingAction = accepted ? null : variants[props.variant];
 
   return (
-    <article className={`relative flex h-full items-center gap-x-3 gap-y-1 rounded-xl border bg-surface px-3 py-2 ${border} ${accepted ? "" : "flex-wrap"}`}>
-      <div className={`flex min-w-0 flex-1 items-center gap-3 ${accepted ? "" : "basis-36"}`}>
+    <article className={`relative isolate flex h-full rounded-2xl border transition-colors ${variants[variant].classes}`}>
+      <header className={`flex min-w-0 items-center ${accepted ? "min-h-20 gap-3 sm:min-h-22" : "flex-1 basis-28 gap-3"}`}>
         <UserAvatar name={name} image={accepted ? props.companion.image : undefined}
-          className="size-11 rounded-full text-sm" />
-        <h3 className="min-w-0 wrap-break-word text-sm font-semibold sm:text-base">{name}</h3>
-      </div>
+          className={`${accepted ? "size-12 sm:size-14" : "size-10"} rounded-full text-base ring-2 ring-brand/10`} />
+        <h3 className={`min-w-0 text-sm leading-tight font-bold wrap-anywhere sm:text-base ${accepted ? "max-w-2/5" : ""}`}>{name}</h3>
+      </header>
       {accepted ? (
         <>
           <button type="button" disabled={disabled} aria-haspopup="dialog" aria-label={`Útitárs részletei: ${name}`}
             onClick={props.onOpen}
-            className="absolute inset-0 z-10 cursor-pointer rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-default" />
-          <dl className="grid shrink-0 gap-1">
-            {companionMetrics.map(({ key, label, icon: Icon }) => (
-              <div key={key} className="rounded-md bg-brand/10">
-                <dt className="sr-only">{label}</dt>
-                <dd className="flex min-w-10 items-center justify-between gap-1.5 px-1.5 py-0.5 text-xs font-semibold tabular-nums">
-                  <Icon aria-hidden="true" className="size-3 text-brand" />
+            className="absolute inset-0 z-10 cursor-pointer rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-default" />
+          <dl className="mt-auto grid grid-cols-3 gap-2">
+            {companionMetrics.map(({ key, cardLabel, icon: Icon }) => (
+              <div key={key} className="grid min-w-0 grid-cols-[auto_minmax(0,auto)] items-center justify-center gap-x-1 rounded-xl border border-border/70 bg-surface-alt/85 px-1 py-2 text-xs leading-tight xl:gap-x-1.5 xl:text-sm">
+                <dt className="col-start-2 row-start-1 wrap-break-word">{cardLabel}</dt>
+                <dd className="col-start-1 row-start-1 flex items-center gap-1 font-semibold tabular-nums">
+                  <Icon aria-hidden="true" className="size-3.5 shrink-0 text-action xl:size-4 dark:text-brand" />
                   {props.companion.stats[key]}
                 </dd>
               </div>
             ))}
           </dl>
         </>
-      ) : (
-        <div className="ml-auto flex flex-wrap justify-end gap-1">
-          <button type="button" disabled={disabled} aria-label={`${variants[props.variant].action}: ${name}`} onClick={props.onRemove}
-            className={`${button} text-muted-foreground hover:bg-surface-alt hover:text-foreground`}>{variants[props.variant].action}</button>
+      ) : pendingAction && (
+        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
           {variant === "incoming" && <button type="button" disabled={disabled} aria-label={`Elfogadás: ${name}`}
-            onClick={props.onAccept} className={`${button} bg-action text-white hover:bg-action-hover`}>
-            <HiOutlineCheck aria-hidden="true" className="size-4" /> Elfogadás
+            onClick={props.onAccept} className={`${button} border-transparent bg-action text-white hover:bg-action-hover`}>
+            <HiCheck aria-hidden="true" className="size-4" /> Elfogadás
           </button>}
+          <button type="button" disabled={disabled} aria-label={`${pendingAction.action}: ${name}`} onClick={props.onRemove}
+            className={`${button} border-border bg-surface text-foreground hover:bg-surface-alt`}>
+            <pendingAction.icon aria-hidden="true" className="size-4" /> {pendingAction.action}
+          </button>
         </div>
       )}
     </article>
